@@ -2,9 +2,11 @@
 
 ## 1. 系统依赖
 
+只需要 ffmpeg 和 git（Python 由 Conda 管理）：
+
 ```bash
 sudo apt update
-sudo apt install -y python3.11 python3.11-venv python3-pip ffmpeg git
+sudo apt install -y ffmpeg git
 ```
 
 ---
@@ -38,13 +40,25 @@ cd ShadowingTTS
 
 ---
 
-## 4. Python 虚拟环境 & 依赖
+## 4. Conda 环境 & 依赖
 
 ```bash
-python3.11 -m venv .venv
-source .venv/bin/activate
+# 创建环境（Python 3.11）
+conda create -n shadowingtts python=3.11 -y
+conda activate shadowingtts
+
+# 安装依赖
 pip install -r requirements.txt
 ```
+
+> **查找 Conda 环境的 Python 路径**（systemd 需要用绝对路径）：
+>
+> ```bash
+> conda activate shadowingtts && which python
+> # 示例输出：/home/youruser/miniconda3/envs/shadowingtts/bin/python
+> ```
+>
+> 记下这个路径，第 7 节 systemd 配置里会用到。
 
 ---
 
@@ -100,7 +114,10 @@ python -m tts_arena.telegram_bot
 
 ### 创建 service 文件
 
-将 `YOUR_USER` 替换为实际用户名（`whoami` 查看），`/home/YOUR_USER/ShadowingTTS` 替换为实际路径。
+将以下占位符替换为实际值：
+
+- `YOUR_USER` → 你的用户名（`whoami` 查看）
+- `CONDA_PYTHON_PATH` → 第 4 节 `which python` 输出的绝对路径
 
 ```bash
 sudo nano /etc/systemd/system/shadowingtts.service
@@ -118,7 +135,7 @@ Wants=network-online.target
 Type=simple
 User=YOUR_USER
 WorkingDirectory=/home/YOUR_USER/ShadowingTTS
-ExecStart=/home/YOUR_USER/ShadowingTTS/.venv/bin/python -m tts_arena.telegram_bot
+ExecStart=CONDA_PYTHON_PATH -m tts_arena.telegram_bot
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
@@ -126,6 +143,12 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
+```
+
+示例（miniconda）：
+
+```ini
+ExecStart=/home/mac/miniconda3/envs/shadowingtts/bin/python -m tts_arena.telegram_bot
 ```
 
 ### 启用并启动
@@ -165,7 +188,7 @@ sudo systemctl status shadowingtts
 如果 `requirements.txt` 有变动，先重装依赖：
 
 ```bash
-source .venv/bin/activate
+conda activate shadowingtts
 pip install -r requirements.txt
 sudo systemctl restart shadowingtts
 ```
