@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Setup
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+conda create -n shadowingtts python=3.11 -y
+conda activate shadowingtts
 pip install -r requirements.txt
 cp .env.example .env
 # fill in provider keys, then:

@@ -101,7 +101,7 @@ VIDEOSRT_TIMEOUT=600
 ## 6. 手动启动测试
 
 ```bash
-source .venv/bin/activate
+conda activate shadowingtts
 python -m tts_arena.telegram_bot
 # Ctrl+C 停止
 ```

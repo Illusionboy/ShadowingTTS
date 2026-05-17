@@ -27,8 +27,8 @@ The arena only depends on this interface, so Edge TTS, Google Chirp 3, Azure, El
 ## Setup
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+conda create -n shadowingtts python=3.11 -y
+conda activate shadowingtts
 pip install -r requirements.txt
 cp .env.example .env
 ```
