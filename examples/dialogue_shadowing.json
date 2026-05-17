@@ -1,0 +1,37 @@
+{
+  "pause_ms": 450,
+  "voices": {
+    "A": {
+      "edge_tts": "ja-JP-NanamiNeural",
+      "azure_tts": "ja-JP-KeitaNeural",
+      "google_chirp_3": "ja-JP-Chirp3-HD-Aoede",
+      "openai_tts": "alloy",
+      "elevenlabs": "ss9cJxDAEMXP4wfQ3GPr"
+    },
+    "B": {
+      "edge_tts": "ja-JP-KeitaNeural",
+      "azure_tts": "ja-JP-NanamiNeural",
+      "google_chirp_3": "ja-JP-Chirp3-HD-Charon",
+      "openai_tts": "onyx",
+      "elevenlabs": "GxhGYQesaQaYKePCZDEC"
+    }
+  },
+  "turns": [
+    {
+      "speaker": "A",
+      "text": "すみません、この電車は新宿まで行きますか。"
+    },
+    {
+      "speaker": "B",
+      "text": "はい、行きます。ただし、途中で急行に乗り換えたほうが早いですよ。"
+    },
+    {
+      "speaker": "A",
+      "text": "ありがとうございます。乗り換えはどの駅ですればいいでしょうか。"
+    },
+    {
+      "speaker": "B",
+      "text": "次の駅で降りて、向かい側のホームに来る急行に乗ってください。"
+    }
+  ]
+}
