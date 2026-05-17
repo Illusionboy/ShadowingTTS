@@ -8,10 +8,15 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-async def submit_to_watch_dir(audio_path: Path, watch_dir: Path) -> Path:
-    """Copy audio file to VideoSRT watch_dir. Returns destination path."""
+async def submit_to_watch_dir(audio_path: Path, watch_dir: Path, lang: str = "ja") -> Path:
+    """Copy audio to watch_dir with language suffix: {stem}.{lang}{ext}.
+
+    VideoSRT reads the lang code from the filename (e.g. dialogue.ja.mp3)
+    and strips it when naming the output SRT (dialogue_bi.srt).
+    """
     watch_dir.mkdir(parents=True, exist_ok=True)
-    dest = watch_dir / audio_path.name
+    dest_name = f"{audio_path.stem}.{lang}{audio_path.suffix}"
+    dest = watch_dir / dest_name
     await asyncio.to_thread(shutil.copy2, str(audio_path), str(dest))
     logger.info("Submitted to VideoSRT watch_dir: %s", dest)
     return dest
@@ -46,9 +51,12 @@ async def submit_and_wait(
     bilingual: bool = True,
     timeout: int = 600,
 ) -> Path | None:
-    """Submit audio to VideoSRT and wait for SRT. Returns SRT path or None."""
-    del lang  # consumed by VideoSRT config; kept as param for future use
-    await submit_to_watch_dir(audio_path, watch_dir)
+    """Submit audio to VideoSRT watch_dir and wait for the SRT.
+
+    The file is renamed to {stem}.{lang}{ext} on submission. VideoSRT strips
+    the lang code when naming the output, so we poll using the original stem.
+    """
+    await submit_to_watch_dir(audio_path, watch_dir, lang)
     return await wait_for_subtitle(
         audio_stem=audio_path.stem,
         out_dir=out_dir,
