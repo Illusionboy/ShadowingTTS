@@ -309,12 +309,12 @@ def example_different_language():
     print("\n" + "="*60)
     print("示例 4: 识别英文并翻译成中文")
     print("="*60)
-    
+
     generator = SubtitleGenerator(
         ja_video_agent_dir="../JaVideoSrtGenAgent"
     )
     generator.initialize()
-    
+
     # 改为识别英文
     srt_path = generator.generate_subtitle(
         media_path="./english_audio.wav",
@@ -322,15 +322,67 @@ def example_different_language():
         bilingual=True,
         wait=False
     )
-    
+
     if srt_path:
         print(f"英文+中文字幕将保存至: {srt_path}")
 
 
-def example_tts_integration():
-    """示例 5：集成到 TTS Agent 的推荐方式"""
+def example_watch_dir_with_lang_suffix():
+    """示例 5：watch_dir 模式 - 通过文件名后缀指定语言（推荐集成方式）"""
     print("\n" + "="*60)
-    print("示例 5: TTS Agent 集成推荐方式")
+    print("示例 5: watch_dir 模式 - 文件名 lang 后缀自动投递")
+    print("="*60 + "\n")
+
+    import shutil
+    import json
+
+    config = json.load(open("../JaVideoSrtGenAgent/config.json"))
+    watch_dir = Path(config["watch_dir"])
+    out_dir = Path(config["out_dir"])
+
+    watch_dir.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    def submit_with_lang(audio_path: str, lang: str) -> Path:
+        """将音频以 lang 后缀格式投递到 watch_dir。
+
+        命名规则：{原始名}.{lang代码}.{扩展名}
+          output.wav + lang=ja → watch_dir/output.ja.wav
+          lecture.mp3 + lang=en → watch_dir/lecture.en.mp3
+
+        VideoSRT Agent 会自动识别后缀、剥离 lang 标签，
+        最终输出 output_bi.srt 和 lecture_bi.srt（不含 lang 标签）。
+        """
+        src = Path(audio_path)
+        dest_name = f"{src.stem}.{lang}{src.suffix}"
+        dest = watch_dir / dest_name
+        shutil.copy2(src, dest)
+        logger.info(f"✅ 已投递: {dest} (lang={lang})")
+        return dest
+
+    # TTS 生成的音频列表（每条带有已知语言）
+    tasks = [
+        ("./generated_ja.wav", "ja"),   # 日文音频
+        ("./generated_en.mp3", "en"),   # 英文音频
+        ("./generated_zh.m4a", "zh"),   # 中文音频
+    ]
+
+    for audio_path, lang in tasks:
+        if not Path(audio_path).exists():
+            print(f"[跳过] 文件不存在: {audio_path}")
+            continue
+        submit_with_lang(audio_path, lang)
+
+    print("\n所有文件已投递，字幕将依次出现在:")
+    print(f"  {out_dir}/generated_ja_bi.srt")
+    print(f"  {out_dir}/generated_en_bi.srt")
+    print(f"  {out_dir}/generated_zh_bi.srt")
+
+
+def example_tts_integration():
+    """示例 6：集成到 TTS Agent 的推荐方式"""
+    print("\n" + "="*60)
+    print("示例 6: TTS Agent 集成推荐方式")
     print("="*60 + "\n")
     
     # 在 TTS Agent 的初始化函数中
@@ -394,12 +446,13 @@ def example_tts_integration():
 
 if __name__ == "__main__":
     # 运行示例（取消注释以测试）
-    
-    # example_basic_usage()
-    # example_sync_wait()
-    # example_japanese_only()
-    # example_different_language()
-    # example_tts_integration()
-    
+
+    # example_basic_usage()           # 示例 1: 异步投递双语字幕
+    # example_sync_wait()             # 示例 2: 同步等待字幕完成
+    # example_japanese_only()         # 示例 3: 仅单语字幕（跳过翻译）
+    # example_different_language()    # 示例 4: 英文识别
+    # example_watch_dir_with_lang_suffix()  # 示例 5: watch_dir + lang 后缀（推荐）
+    # example_tts_integration()       # 示例 6: 完整 TTS Agent 集成
+
     print("\n提示：这是一个集成示例文件，请根据实际需求修改路径和调用方式。")
     print("详见 SUBTITLE_INTERFACE.md 了解完整的 API 文档。")

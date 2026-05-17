@@ -1,116 +1,136 @@
-# API 速查表 (Cheat Sheet)
+# API 速查表 - watch_dir 方案
 
-快速参考，无需翻阅完整文档。
+最常用的代码片段速查，无需翻阅完整文档。
 
 ---
 
-## 导入
+## 最简单的投递方式
 
 ```python
-import sys
-sys.path.insert(0, "../JaVideoSrtGenAgent")
-
-from master_multiprcs import start_pipeline, enqueue_media_for_subtitle
+import shutil
 import json
 
 config = json.load(open("../JaVideoSrtGenAgent/config.json"))
+audio = "output.wav"
+
+# 一行代码投递到 watch_dir
+shutil.copy2(audio, config["watch_dir"])
+
+# 完成！VideoSRT 会自动转写和翻译
 ```
 
 ---
 
-## 初始化（一次）
+## 带等待的完整版
 
 ```python
-start_pipeline(config)
+import shutil, time, json
+from pathlib import Path
+
+config = json.load(open("../JaVideoSrtGenAgent/config.json"))
+watch_dir = Path(config["watch_dir"])
+out_dir = Path(config["out_dir"])
+
+# 1. 投递
+audio = "output.wav"
+shutil.copy2(audio, watch_dir / audio)
+
+# 2. 等待字幕（最多 10 分钟）
+expected_srt = out_dir / f"{Path(audio).stem}_bi.srt"
+for i in range(600):
+    if expected_srt.exists():
+        print(f"✅ 字幕完成！{expected_srt}")
+        break
+    time.sleep(1)
 ```
 
 ---
 
-## 生成双语字幕
+## 生产推荐版本
 
 ```python
-srt = enqueue_media_for_subtitle(
-    media_path="audio.wav",      # 必需
-    config=config,               # 必需
-    lang="ja",                   # 可选，默认 config["lang"]
-    no_trans=False               # False = 双语，True = 单语
+import shutil, time, json
+from pathlib import Path
+
+def post_audio_for_subtitle(audio_path, config_path, wait=False, timeout=600):
+    """投递音频，返回字幕路径"""
+    cfg = json.load(open(config_path))
+    watch = Path(cfg["watch_dir"])
+    out = Path(cfg["out_dir"])
+    
+    # 投递
+    watch.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(audio_path, watch / Path(audio_path).name)
+    expected = out / f"{Path(audio_path).stem}_bi.srt"
+    
+    if wait:
+        # 等待完成
+        for _ in range(timeout):
+            if expected.exists():
+                return expected
+            time.sleep(1)
+        return None
+    
+    return expected
+
+# 使用
+srt = post_audio_for_subtitle(
+    "output.wav",
+    "../JaVideoSrtGenAgent/config.json",
+    wait=True,
+    timeout=600
 )
+
+if srt:
+    with open(srt, encoding="utf-8") as f:
+        print(f.read())
 ```
 
 ---
 
-## 常用变体
+## VideoSRT 服务启动（一次）
 
-### 仅日文字幕（跳过翻译）
+```bash
+cd /path/to/JaVideoSrtGenAgent
+python master_multiprcs.py &
 
-```python
-enqueue_media_for_subtitle("audio.wav", config, no_trans=True)
-```
-
-### 英文识别
-
-```python
-enqueue_media_for_subtitle("audio.wav", config, lang="en", no_trans=False)
-```
-
-### 自定义输出目录
-
-```python
-cfg = config.copy()
-cfg["out_dir"] = "./my_output"
-enqueue_media_for_subtitle("audio.wav", cfg)
+# 或使用 systemd
+sudo systemctl start dtv_bot
 ```
 
 ---
 
-## 输出文件
+## 配置关键项
 
-| 类型 | 文件名 | 路径 |
-|------|--------|------|
-| 双语 | `{名称}_bi.srt` | `config["out_dir"]` |
-| 单语 | `{名称}.srt` | `config["out_dir"]` |
+```json
+{
+  "watch_dir": "/mnt/nas/watch_input",
+  "out_dir": "/mnt/nas/subtitle_output",
+  "gemini_api_key": "YOUR_KEY",
+  "lang": "ja"
+}
+```
 
 ---
 
 ## 支持的格式
 
 ```
-.mp3, .wav, .m4a (音频)
-.mp4, .mkv, .avi, .webm, .mov (视频)
+音频: .mp3, .wav, .m4a
+视频: .mp4, .mkv, .avi, .webm, .mov
 ```
 
 ---
 
-## 等待完成（可选）
+## 输出文件命名
 
-```python
-import time
-from pathlib import Path
+| 输入 | 双语输出 | 单语输出 |
+|------|---------|---------|
+| `audio.wav` | `audio_bi.srt` | `audio.srt` |
+| `video.mp4` | `video_bi.srt` | `video.srt` |
 
-srt_path = Path(config["out_dir"]) / "audio_bi.srt"
-enqueue_media_for_subtitle("audio.wav", config)
-
-while not srt_path.exists():
-    time.sleep(1)
-print(f"完成: {srt_path}")
-```
-
-或使用提供的 `SubtitleGenerator` 类（见 `subtitle_integration_example.py`）：
-
-```python
-from subtitle_integration_example import SubtitleGenerator
-
-gen = SubtitleGenerator("../JaVideoSrtGenAgent")
-gen.initialize()
-
-# 同步等待
-srt_path = gen.generate_subtitle(
-    "audio.wav",
-    bilingual=True,
-    wait=True,
-    timeout=600
-)
-```
+位置：`config["out_dir"]`
 
 ---
 
@@ -118,128 +138,56 @@ srt_path = gen.generate_subtitle(
 
 ```python
 with open(srt_path, "r", encoding="utf-8") as f:
-    print(f.read())
+    subtitle_text = f.read()
 ```
 
 ---
 
-## 错误处理
-
-```python
-try:
-    srt = enqueue_media_for_subtitle("audio.wav", config)
-except FileNotFoundError:
-    print("文件不存在")
-except ValueError:
-    print("不支持的格式")
-```
-
----
-
-## 配置最小要求
-
-```json
-{
-    "gemini_api_key": "YOUR_API_KEY",
-    "out_dir": "./exports"
-}
-```
-
----
-
-## 完整最小示例
-
-```python
-#!/usr/bin/env python3
-import sys, json
-from pathlib import Path
-
-sys.path.insert(0, "../JaVideoSrtGenAgent")
-from master_multiprcs import start_pipeline, enqueue_media_for_subtitle
-
-# 1. 配置
-config = json.load(open("../JaVideoSrtGenAgent/config.json"))
-
-# 2. 启动
-start_pipeline(config)
-
-# 3. 生成字幕
-srt = enqueue_media_for_subtitle("audio.wav", config)
-
-# 4. 读取
-with open(srt) as f:
-    print(f.read())
-```
-
----
-
-## 配置继承
-
-```python
-# 保留 JaVideoSrtGenAgent 的配置
-base_config = json.load(open("../JaVideoSrtGenAgent/config.json"))
-
-# 添加或覆盖
-base_config["out_dir"] = "./tts_output"
-base_config["lang"] = "en"
-
-enqueue_media_for_subtitle("audio.wav", base_config)
-```
-
----
-
-## 多个文件
-
-```python
-audio_files = ["audio1.wav", "audio2.wav", "audio3.wav"]
-
-for audio in audio_files:
-    enqueue_media_for_subtitle(audio, config)
-    print(f"已投递: {audio}")
-
-# 后台依次处理
-```
-
----
-
-## 日志配置
-
-字幕系统已配置日志，会输出到终端。查看进度：
+## 检查处理状态
 
 ```bash
-# macOS/Linux 查看终端输出
-# 或导出日志
-python -c "
-import logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='subtitle.log'
-)
-"
+# 监控 watch_dir（应该是空或有正在处理的文件）
+ls -lh /mnt/nas/watch_input/
+
+# 监控 out_dir（应该有输出的字幕）
+ls -lh /mnt/nas/subtitle_output/
+
+# 查看日志
+tail -f nohup.out | grep -E "新文件|转写|翻译"
 ```
 
 ---
 
-## 性能提示
+## 常见问题速解
 
-- **大文件** (>2GB) → 可能失败，建议分割
-- **快速模式** → 用 `no_trans=True` 跳过翻译，快 60%
-- **多任务** → 最多 3-5 个并发任务（GPU 限制）
-- **API 频率** → Gemini 自动加延迟，无需手动处理
-
----
-
-## 常见错误
-
-| 错误 | 原因 | 解决 |
+| 问题 | 原因 | 修复 |
 |------|------|------|
-| `FileNotFoundError` | 文件不存在 | 检查路径 |
-| `ValueError: 不支持的格式` | 扩展名错误 | 用支持的格式 |
-| `ImportError: No module named 'master_multiprcs'` | 路径错误 | 检查 `sys.path.insert` |
-| Gemini 翻译失败 | API 密钥无效 | 检查 `config.json` |
-| 字幕缺失 | 流水线未启动 | 调用 `start_pipeline` |
+| 字幕不生成 | watch_dir 路径错 | 检查 config.json |
+| 权限拒绝 | NAS 权限不足 | `chmod 755 /mnt/nas/*` |
+| 服务卡顿 | watch_dir 和 out_dir 重叠 | 分离目录（见 WATCH_DIR_CONFIG_FIX.md） |
+| Gemini 失败 | API 密钥无效 | 更新 config.json |
+| 文件未检测 | VideoSRT 未运行 | `ps aux \| grep master_multiprcs` |
 
 ---
 
-**更新时间**：2026-05-17
+## 完整工作流
+
+```
+TTS 生成 audio.wav
+  ↓
+shutil.copy2(audio.wav, watch_dir/)
+  ↓
+VideoSRT 监控到文件
+  ↓
+Whisper 转写 → audio.srt
+  ↓
+Gemini 翻译 → audio_bi.srt
+  ↓
+字幕输出到 out_dir
+  ↓
+TTS 从 out_dir 读取字幕
+```
+
+---
+
+**更新时间**：2026-05-18

@@ -9,3 +9,5 @@ outputs/
 *.wav
 
 keys/
+.vscode/
+*.bak/

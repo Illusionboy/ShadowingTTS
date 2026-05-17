@@ -6,7 +6,7 @@
 
 ## 🏗️ 推荐架构
 
-```
+```text
 ┌─────────────────────┐
 │   TTS Agent         │
 │  (独立进程/服务)    │
@@ -139,7 +139,7 @@ if srt_path:
 **原理**：VideoSRT Agent 作为独立后台服务，监控热目录
 
 | 特性 | 优点 | 缺点 |
-|------|------|------|
+| ------ | ------ | ------ |
 | **解耦度** | 完全独立，可在不同机器 | 需要共享存储 |
 | **部署** | 简单（1 行复制命令） | 需要配置 NAS 或网络共享 |
 | **可维护性** | 高（更新互不影响） | 文件系统延迟（秒级） |
@@ -164,7 +164,7 @@ srt = enqueue_media_for_subtitle("audio.wav", config)
 ```
 
 | 特性 | 优点 | 缺点 |
-|------|------|------|
+| ------ | ------ | ------ |
 | **解耦度** | - | 紧耦合，必须同一进程 |
 | **部署** | 零延迟（毫秒级） | 复杂（要处理依赖冲突） |
 | **可维护性** | - | 低（更新需要重启整个服务） |
@@ -178,14 +178,58 @@ srt = enqueue_media_for_subtitle("audio.wav", config)
 
 ## watch_dir 详细说明
 
+### 语言选择：文件名 lang 后缀约定
+
+VideoSRT Agent 通过 **文件名中的语言后缀** 识别每个文件应使用的转写语言，无需修改 config.json 或额外配置。
+
+#### 命名规则
+
+```
+{原始名}.{lang代码}.{扩展名}
+```
+
+| 示例文件名 | 识别语言 | 输出文件名 |
+| ----------- | --------- | ----------- |
+| `speech.ja.mp4` | 日文 | `speech_bi.srt` |
+| `lecture.en.wav` | 英文 | `lecture_bi.srt` |
+| `podcast.zh.mp3` | 中文 | `podcast_bi.srt` |
+| `audio.mp4` | config 默认（ja） | `audio_bi.srt` |
+
+**关键特性：**
+- lang 后缀在复制到内部队列时自动剥离，**输出文件名不含 lang 标签**
+- 若 stem 最后一段不是合法 Whisper 语言代码，回退到 config.json 的 `lang` 设置，不影响普通文件
+- 支持所有 Whisper ISO 639-1 代码：`ja` `en` `zh` `ko` `fr` `de` `es` `pt` `ru` `ar` 等
+
+#### TTS Agent 投递示例（自动添加后缀）
+
+```python
+import shutil
+from pathlib import Path
+
+def submit_with_lang(audio_path: str, lang: str, watch_dir: str) -> Path:
+    """将音频以 lang 后缀格式投递到 watch_dir。"""
+    src = Path(audio_path)
+    # output.wav → output.ja.wav
+    dest_name = f"{src.stem}.{lang}{src.suffix}"
+    dest = Path(watch_dir) / dest_name
+    shutil.copy2(src, dest)
+    return dest
+
+# 使用
+submit_with_lang("output.wav", lang="ja", watch_dir="/mnt/nas/watch_input")
+submit_with_lang("lecture.mp3", lang="en", watch_dir="/mnt/nas/watch_input")
+```
+
+---
+
 ### 工作流程
 
 ```
 1️⃣  TTS Agent 生成 audio.wav
         ↓
-2️⃣  TTS 复制 audio.wav 到 watch_dir
+2️⃣  TTS 重命名为 audio.ja.wav 并复制到 watch_dir
         ↓
-3️⃣  VideoSRT Agent 监控检测 (热目录)
+3️⃣  VideoSRT Agent 监控检测 (热目录)，解析 lang=ja，dest=audio.wav
         ↓
 4️⃣  whisper_worker 转写 → audio.srt (日文)
         ↓
@@ -203,12 +247,15 @@ srt = enqueue_media_for_subtitle("audio.wav", config)
 ```python
 import shutil
 import json
+from pathlib import Path
 
 config = json.load(open("../JaVideoSrtGenAgent/config.json"))
-audio_file = "output.wav"
+audio_file = Path("output.wav")
+lang = "ja"  # TTS 侧已知的语言
 
-# 复制到 watch_dir
-shutil.copy2(audio_file, config["watch_dir"])
+# 以 lang 后缀命名后投递
+dest_name = f"{audio_file.stem}.{lang}{audio_file.suffix}"  # output.ja.wav
+shutil.copy2(audio_file, Path(config["watch_dir"]) / dest_name)
 ```
 
 **生产环境推荐**：
@@ -224,56 +271,57 @@ logging.basicConfig(level=logging.INFO)
 
 def submit_audio_to_subtitle_service(
     audio_path: str,
+    lang: str = "ja",
     config_path: str = "../JaVideoSrtGenAgent/config.json",
     wait: bool = False,
     timeout: int = 600
 ):
     """
-    投递音频到字幕服务
-    
+    投递音频到字幕服务（自动附加 lang 后缀）
+
     Args:
         audio_path: 音频文件路径
+        lang: Whisper 识别语言代码，如 "ja" "en" "zh" "ko"
         config_path: JaVideoSrtGenAgent config.json 路径
         wait: 是否等待字幕完成
         timeout: 最长等待秒数
-    
+
     Returns:
-        (投递路径, 预期字幕路径，实际字幕路径 or None)
+        (投递路径, 预期字幕路径, 实际字幕路径 or None)
     """
     config = json.load(open(config_path))
     watch_dir = Path(config["watch_dir"])
     out_dir = Path(config["out_dir"])
-    
-    # 确保目录存在
+
     watch_dir.mkdir(parents=True, exist_ok=True)
     out_dir.mkdir(parents=True, exist_ok=True)
-    
-    # 投递
+
+    # 附加 lang 后缀：output.wav → output.ja.wav
     audio_file = Path(audio_path)
-    watched_path = watch_dir / audio_file.name
+    dest_name = f"{audio_file.stem}.{lang}{audio_file.suffix}"
+    watched_path = watch_dir / dest_name
     shutil.copy2(audio_path, watched_path)
-    
-    logging.info(f"✅ 已投递: {watched_path}")
-    
-    # 预期输出路径
+
+    logging.info(f"✅ 已投递: {watched_path} (lang={lang})")
+
+    # 输出 SRT 的 stem 不含 lang 标签
     expected_srt = out_dir / f"{audio_file.stem}_bi.srt"
     logging.info(f"预期字幕: {expected_srt}")
-    
+
     if not wait:
         return str(watched_path), str(expected_srt), None
-    
-    # 等待字幕生成
+
     logging.info(f"⏳ 等待字幕生成（最多 {timeout} 秒）...")
     for i in range(timeout):
         if expected_srt.exists():
-            logging.info(f"✅ 字幕已完成！")
+            logging.info("✅ 字幕已完成！")
             return str(watched_path), str(expected_srt), str(expected_srt)
-        
+
         if i % 30 == 0:
             logging.info(f"   进度: {i}/{timeout} 秒...")
-        
+
         time.sleep(1)
-    
+
     logging.warning(f"⚠️ 超时：字幕未在规定时间内生成")
     return str(watched_path), str(expected_srt), None
 
@@ -281,10 +329,11 @@ def submit_audio_to_subtitle_service(
 if __name__ == "__main__":
     submitted, expected, actual = submit_audio_to_subtitle_service(
         audio_path="output.wav",
+        lang="ja",
         wait=True,
         timeout=600
     )
-    
+
     if actual:
         print(f"字幕地址: {actual}")
         with open(actual, encoding="utf-8") as f:
@@ -307,7 +356,7 @@ if __name__ == "__main__":
 ```
 
 | 字段 | 必需 | 说明 |
-|------|------|------|
+| ------ | ------ | ------ |
 | `watch_dir` | ✅ | 热目录路径（TTS 投递音频的地方，必须共享存储） |
 | `out_dir` | ✅ | 字幕输出目录（TTS 可从这里读取字幕） |
 | `gemini_api_key` | ✅ | Google Gemini API 密钥 |
@@ -325,7 +374,7 @@ if __name__ == "__main__":
 ### 输出文件
 
 | 输入 | 单语输出 | 双语输出 |
-|------|---------|---------|
+| ------ | --------- | --------- |
 | `audio.wav` | `audio.srt` | `audio_bi.srt` |
 | `video.mp4` | `video.srt` | `video_bi.srt` |
 
