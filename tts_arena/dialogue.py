@@ -52,10 +52,14 @@ async def run_dialogue(
     output_format: AudioFormat,
     reference_video: Path | None,
     output_stem: str | None = None,
+    voice_settings_override: dict | None = None,
 ) -> list[TTSResult]:
     output_dir.mkdir(parents=True, exist_ok=True)
     tasks = [
-        _run_adapter_dialogue(adapter, script, output_dir, output_format, reference_video, output_stem)
+        _run_adapter_dialogue(
+            adapter, script, output_dir, output_format,
+            reference_video, output_stem, voice_settings_override,
+        )
         for adapter in adapters
     ]
     return await asyncio.gather(*tasks)
@@ -68,6 +72,7 @@ async def _run_adapter_dialogue(
     output_format: AudioFormat,
     reference_video: Path | None,
     output_stem: str | None = None,
+    voice_settings_override: dict | None = None,
 ) -> TTSResult:
     key = adapter_key(adapter)
     segment_dir = output_dir / "_dialogue_segments" / key
@@ -84,6 +89,7 @@ async def _run_adapter_dialogue(
                 voice=_voice_for(script.voices, turn.speaker, key),
                 speaker=turn.speaker,
                 output_stem=f"{index:03d}_{_safe_name(turn.speaker)}",
+                voice_settings=voice_settings_override,
             )
             result = await adapter.synthesize(request)
             if not result.ok or not result.output_path:

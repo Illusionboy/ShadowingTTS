@@ -63,15 +63,16 @@ class ElevenLabsAdapter(TTSAdapter):
         output_path = self.output_path(request)
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
         headers = self._headers("audio/mpeg" if request.output_format == "mp3" else "audio/wav")
+        settings = request.voice_settings or {
+            "stability": 0.35,
+            "similarity_boost": 0.75,
+            "style": 0.45,
+            "use_speaker_boost": True,
+        }
         body = {
             "text": request.text,
             "model_id": self.model_id,
-            "voice_settings": {
-                "stability": 0.45,
-                "similarity_boost": 0.85,
-                "style": 0.2,
-                "use_speaker_boost": True,
-            },
+            "voice_settings": settings,
         }
         async with httpx.AsyncClient(timeout=180) as client:
             response = await client.post(url, headers=headers, json=body)

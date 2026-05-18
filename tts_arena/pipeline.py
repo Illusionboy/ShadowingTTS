@@ -15,6 +15,29 @@ from .gemini_normalizer import (
 )
 
 
+_FORMAL_TOPICS = {
+    "interview", "business", "formal", "meeting", "presentation",
+    "negotiat", "professional", "office", "work", "client", "proposal",
+    "contract", "report", "conference", "seminar",
+}
+_CASUAL_TOPICS = {
+    "casual", "chat", "friend", "daily", "restaurant", "shopping",
+    "travel", "hobby", "weekend", "family", "date", "party",
+}
+
+
+def _voice_settings_for_topic(topic_slug: str) -> dict:
+    slug = topic_slug.lower()
+    if any(k in slug for k in _FORMAL_TOPICS):
+        # Business / interview: confident delivery, clear articulation
+        return {"stability": 0.28, "similarity_boost": 0.72, "style": 0.55, "use_speaker_boost": True}
+    if any(k in slug for k in _CASUAL_TOPICS):
+        # Casual conversation: warm, natural variation
+        return {"stability": 0.32, "similarity_boost": 0.75, "style": 0.45, "use_speaker_boost": True}
+    # General default: expressive but balanced
+    return {"stability": 0.35, "similarity_boost": 0.75, "style": 0.45, "use_speaker_boost": True}
+
+
 def default_dialogue_voices(provider: str) -> dict[str, dict[str, str]]:
     voices: dict[str, dict[str, str]] = {
         "A": {},
@@ -79,6 +102,7 @@ async def synthesize_user_dialogue(
         output_format=output_format,
         reference_video=env_path("TTS_REFERENCE_VIDEO", "ref_japanese.mp4"),
         output_stem=output_stem,
+        voice_settings_override=_voice_settings_for_topic(script.topic_slug),
     )
     result = results[0]
     (output_dir / "dialogue.json").write_text(dialogue_to_json(script), encoding="utf-8")

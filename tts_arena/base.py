@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 
 AudioFormat = Literal["mp3", "wav"]
@@ -17,6 +17,7 @@ class TTSRequest:
     voice: str | None = None
     speaker: str | None = None
     output_stem: str | None = None
+    voice_settings: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
