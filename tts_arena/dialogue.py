@@ -20,6 +20,7 @@ class DialogueScript:
     turns: list[DialogueTurn]
     voices: dict[str, dict[str, str]]
     pause_ms: int = 450
+    topic_slug: str = "dialogue"
 
 
 def adapter_key(adapter: TTSAdapter) -> str:
@@ -50,10 +51,11 @@ async def run_dialogue(
     output_dir: Path,
     output_format: AudioFormat,
     reference_video: Path | None,
+    output_stem: str | None = None,
 ) -> list[TTSResult]:
     output_dir.mkdir(parents=True, exist_ok=True)
     tasks = [
-        _run_adapter_dialogue(adapter, script, output_dir, output_format, reference_video)
+        _run_adapter_dialogue(adapter, script, output_dir, output_format, reference_video, output_stem)
         for adapter in adapters
     ]
     return await asyncio.gather(*tasks)
@@ -65,6 +67,7 @@ async def _run_adapter_dialogue(
     output_dir: Path,
     output_format: AudioFormat,
     reference_video: Path | None,
+    output_stem: str | None = None,
 ) -> TTSResult:
     key = adapter_key(adapter)
     segment_dir = output_dir / "_dialogue_segments" / key
@@ -87,7 +90,8 @@ async def _run_adapter_dialogue(
                 raise RuntimeError(result.error or "segment synthesis failed")
             segment_paths.append(result.output_path)
 
-        output_path = output_dir / f"{key}_dialogue.{output_format}"
+        stem = output_stem or f"{key}_dialogue"
+        output_path = output_dir / f"{stem}.{output_format}"
         await concat_audio(segment_paths, output_path, script.pause_ms)
         return TTSResult(adapter.name, output_path, True)
     except Exception as exc:  # noqa: BLE001 - keep one provider failure local.

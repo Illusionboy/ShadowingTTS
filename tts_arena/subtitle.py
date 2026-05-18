@@ -13,10 +13,16 @@ async def submit_to_watch_dir(audio_path: Path, watch_dir: Path, lang: str = "ja
 
     VideoSRT reads the lang code from the filename (e.g. dialogue.ja.mp3)
     and strips it when naming the output SRT (dialogue_bi.srt).
+    If the destination already exists a counter suffix (_2, _3 …) is appended
+    to avoid overwriting a file that is still being processed.
     """
     watch_dir.mkdir(parents=True, exist_ok=True)
-    dest_name = f"{audio_path.stem}.{lang}{audio_path.suffix}"
-    dest = watch_dir / dest_name
+    base_stem = f"{audio_path.stem}.{lang}"
+    dest = watch_dir / f"{base_stem}{audio_path.suffix}"
+    counter = 2
+    while await asyncio.to_thread(dest.exists):
+        dest = watch_dir / f"{base_stem}_{counter}{audio_path.suffix}"
+        counter += 1
     await asyncio.to_thread(shutil.copy2, str(audio_path), str(dest))
     logger.info("Submitted to VideoSRT watch_dir: %s", dest)
     return dest
@@ -56,9 +62,13 @@ async def submit_and_wait(
     The file is renamed to {stem}.{lang}{ext} on submission. VideoSRT strips
     the lang code when naming the output, so we poll using the original stem.
     """
-    await submit_to_watch_dir(audio_path, watch_dir, lang)
+    dest = await submit_to_watch_dir(audio_path, watch_dir, lang)
+    # dest stem is "{original_stem}.{lang}" or "{original_stem}.{lang}_{n}".
+    # VideoSRT strips the last ".{lang}" segment to form the SRT stem,
+    # so we poll using the part before that suffix.
+    srt_stem = dest.stem.rsplit(".", 1)[0]
     return await wait_for_subtitle(
-        audio_stem=audio_path.stem,
+        audio_stem=srt_stem,
         out_dir=out_dir,
         bilingual=bilingual,
         timeout=timeout,

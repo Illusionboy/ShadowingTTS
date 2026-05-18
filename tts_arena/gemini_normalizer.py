@@ -16,6 +16,13 @@ class NormalizedTurn(BaseModel):
 
 
 class NormalizedDialogue(BaseModel):
+    topic_slug: str = Field(
+        description=(
+            "2-3 word English snake_case topic label, max 30 chars. "
+            "Summarises what the dialogue is about. "
+            "Examples: 'train_schedule_inquiry', 'restaurant_order', 'job_interview'."
+        )
+    )
     turns: list[NormalizedTurn] = Field(description="Two-person dialogue turns.")
 
 
@@ -74,6 +81,7 @@ class GeminiDialogueNormalizer:
         return DialogueScript(
             turns=[DialogueTurn(speaker=item.speaker, text=item.text) for item in parsed.turns],
             voices={},
+            topic_slug=_sanitize_slug(parsed.topic_slug),
         )
 
 
@@ -85,6 +93,12 @@ def language_label(language: str) -> str:
         "ko": "韓国語",
     }
     return labels.get(language, language)
+
+
+def _sanitize_slug(raw: str) -> str:
+    """Keep only ASCII alphanumeric and underscores, collapse runs, strip ends."""
+    slug = re.sub(r"[^a-z0-9]+", "_", raw.lower().strip())
+    return slug.strip("_")[:30] or "dialogue"
 
 
 def normalize_without_llm(user_text: str, mode: str = "dialogue") -> DialogueScript:
@@ -103,7 +117,7 @@ def normalize_without_llm(user_text: str, mode: str = "dialogue") -> DialogueScr
 
     if not turns:
         turns = [DialogueTurn(speaker="A", text=user_text.strip())]
-    return DialogueScript(turns=turns, voices={})
+    return DialogueScript(turns=turns, voices={}, topic_slug=mode)
 
 
 def dialogue_to_json(script: DialogueScript) -> str:

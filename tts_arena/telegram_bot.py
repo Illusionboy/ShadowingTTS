@@ -130,8 +130,9 @@ async def process_pending_request(update: Update, context: ContextTypes.DEFAULT_
                 f"结构化JSON:\n```json\n{dialogue_to_json(script)}\n```",
                 parse_mode="Markdown",
             )
+        audio_filename = f"{result.output_path.stem}.{language}{result.output_path.suffix}"
         with result.output_path.open("rb") as audio:
-            await message.reply_audio(audio=audio, filename=result.output_path.name)
+            await message.reply_audio(audio=audio, filename=audio_filename)
         context.user_data.pop("pending_text", None)
 
         if _videosrt_configured():

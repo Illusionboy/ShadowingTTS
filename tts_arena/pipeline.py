@@ -69,14 +69,16 @@ async def synthesize_user_dialogue(
     script = await normalize_user_dialogue(user_text, language=language, mode=mode)
     script = replace(script, voices=default_dialogue_voices(provider))
 
-    run_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    output_dir = output_root / run_id
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    output_stem = f"{script.topic_slug}_{ts}"
+    output_dir = output_root / ts
     results = await run_dialogue(
         adapters=build_adapters({provider}),
         script=script,
         output_dir=output_dir,
         output_format=output_format,
         reference_video=env_path("TTS_REFERENCE_VIDEO", "ref_japanese.mp4"),
+        output_stem=output_stem,
     )
     result = results[0]
     (output_dir / "dialogue.json").write_text(dialogue_to_json(script), encoding="utf-8")
