@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -18,7 +19,7 @@ from ..subtitle import srt_candidates, submit_to_watch_dir, wait_for_subtitle
 from . import notify
 from .generator import DailyLesson, GeminiLessonGenerator, lesson_to_json, lesson_to_script
 from .publish import publish_file, script_markdown, write_text_file
-from .srtgen import SegmentTimingError, script_srt
+from .srtgen import SegmentTimingError, script_srt, segment_dir
 from .scenarios import (
     Scenario,
     append_history,
@@ -308,6 +309,11 @@ async def _synthesize(
     if not script.turns:
         raise RuntimeError(f"no turns generated for {lang}")
     adapters = build_adapters({provider})
+    # Segments are matched to turns by position when the SRT is built, so a
+    # leftover 011_a.mp3 from a longer run would poison the timeline.
+    stale = segment_dir(day_dir / lang, adapters[0].name)
+    if stale.exists():
+        shutil.rmtree(stale, ignore_errors=True)
     results = await run_dialogue(
         adapters=adapters,
         script=script,
@@ -395,7 +401,9 @@ async def run_lesson(
             stem = f"{stem}_{stem_suffix}"
         await _emit(progress, f"文稿生成完成：{lesson.title_ja}（{stem}）")
 
-        day_dir = work_dir() / date_str
+        # One directory per stem: ad-hoc runs and reruns must not share segment
+        # directories with each other.
+        day_dir = work_dir() / date_str / stem
         day_dir.mkdir(parents=True, exist_ok=True)
         result = LessonResult(stem=stem, scenario=scenario, lesson=lesson, dry_run=dry_run)
 
