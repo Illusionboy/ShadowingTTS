@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the daily 3PL/SCM shadowing lesson every morning
+
+[Timer]
+OnCalendar=*-*-* 06:30:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=shadowing-daily.service
+
+[Install]
+WantedBy=timers.target

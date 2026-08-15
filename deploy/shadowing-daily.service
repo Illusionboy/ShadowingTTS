@@ -1,0 +1,16 @@
+[Unit]
+Description=ShadowingTTS daily 3PL/SCM bilingual lesson
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=neox
+WorkingDirectory=/home/neox/svr/ShadowingTTS
+ExecStart=/home/neox/anaconda3/envs/shadowingtts/bin/python -m tts_arena.daily
+TimeoutStartSec=3600
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

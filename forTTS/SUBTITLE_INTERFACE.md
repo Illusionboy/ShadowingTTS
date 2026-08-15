@@ -147,6 +147,7 @@ if srt_path:
 | **错误隔离** | 好（一个服务崩溃不影响另一个） | - |
 
 **适用场景**：
+
 - ✅ VideoSRT 是 Linux GPU 服务器上的独立服务
 - ✅ TTS 可能在不同机器
 - ✅ 需要稳定的长期部署
@@ -171,6 +172,7 @@ srt = enqueue_media_for_subtitle("audio.wav", config)
 | **扩展性** | 可同步等待结果 | 很难添加其他服务 |
 
 **适用场景**：
+
 - ❌ **不推荐**（对大多数场景而言）
 - 仅当 TTS 和 VideoSRT 必须紧耦合时才考虑
 
@@ -184,19 +186,20 @@ VideoSRT Agent 通过 **文件名中的语言后缀** 识别每个文件应使�
 
 #### 命名规则
 
-```
+```text
 {原始名}.{lang代码}.{扩展名}
 ```
 
 | 示例文件名 | 识别语言 | 输出文件名 |
 | ----------- | --------- | ----------- |
-| `speech.ja.mp4` | 日文 | `speech_bi.srt` |
-| `lecture.en.wav` | 英文 | `lecture_bi.srt` |
-| `podcast.zh.mp3` | 中文 | `podcast_bi.srt` |
+| `speech.ja.mp4` | 日文 | `speech.ja_bi.srt` |
+| `lecture.en.wav` | 英文 | `lecture.en_bi.srt` |
+| `podcast.zh.mp3` | 中文 | `podcast.zh_bi.srt` |
 | `audio.mp4` | config 默认（ja） | `audio_bi.srt` |
 
 **关键特性：**
-- lang 后缀在复制到内部队列时自动剥离，**输出文件名不含 lang 标签**
+
+- lang 后缀**保留在输出文件名中**：`audio.en.mp3` → `audio.en_bi.srt`，ShadowReader 可据此识别语言
 - 若 stem 最后一段不是合法 Whisper 语言代码，回退到 config.json 的 `lang` 设置，不影响普通文件
 - 支持所有 Whisper ISO 639-1 代码：`ja` `en` `zh` `ko` `fr` `de` `es` `pt` `ru` `ar` 等
 
@@ -224,20 +227,20 @@ submit_with_lang("lecture.mp3", lang="en", watch_dir="/mnt/nas/watch_input")
 
 ### 工作流程
 
-```
+```text
 1️⃣  TTS Agent 生成 audio.wav
         ↓
 2️⃣  TTS 重命名为 audio.ja.wav 并复制到 watch_dir
         ↓
-3️⃣  VideoSRT Agent 监控检测 (热目录)，解析 lang=ja，dest=audio.wav
+3️⃣  VideoSRT Agent 监控检测 (热目录)，解析 lang=ja，文件名保留 .ja
         ↓
-4️⃣  whisper_worker 转写 → audio.srt (日文)
+4️⃣  whisper_worker 转写 → audio.ja.srt (日文)
         ↓
-5️⃣  translation_worker 翻译 → audio_bi.srt (日+中)
+5️⃣  translation_worker 翻译 → audio.ja_bi.srt (日+中)
         ↓
 6️⃣  字幕输出到 out_dir
         ↓
-7️⃣  TTS Agent 从 out_dir 读取字幕（可选）
+7️⃣  TTS Agent / ShadowReader 从 out_dir 读取字幕
 ```
 
 ### TTS 投递代码示例
@@ -304,8 +307,8 @@ def submit_audio_to_subtitle_service(
 
     logging.info(f"✅ 已投递: {watched_path} (lang={lang})")
 
-    # 输出 SRT 的 stem 不含 lang 标签
-    expected_srt = out_dir / f"{audio_file.stem}_bi.srt"
+    # 输出 SRT 保留 lang 标签：output.ja.wav → output.ja_bi.srt
+    expected_srt = out_dir / f"{audio_file.stem}.{lang}_bi.srt"
     logging.info(f"预期字幕: {expected_srt}")
 
     if not wait:
@@ -366,17 +369,20 @@ if __name__ == "__main__":
 
 ### 支持的媒体格式
 
-```
+```text
 音频: .mp3, .wav, .m4a
 视频: .mp4, .mkv, .avi, .webm, .mov
 ```
 
 ### 输出文件
 
-| 输入 | 单语输出 | 双语输出 |
+两条路径均在输出文件名中保留 lang 标签，ShadowReader 可统一用 `detect_lang_from_srt()` 识别：
+
+| 来源 | 输入示例 | 双语输出示例 |
 | ------ | --------- | --------- |
-| `audio.wav` | `audio.srt` | `audio_bi.srt` |
-| `video.mp4` | `video.srt` | `video_bi.srt` |
+| watch_dir（TTS Agent 投递） | `audio.ja.wav` | `audio.ja_bi.srt` |
+| Telegram URL 下载 | 用户选 ja → `title.mp4` | `title.ja_bi.srt` |
+| 无 lang 后缀（回退默认） | `audio.wav` | `audio_bi.srt` |
 
 **所有文件输出到** `config["out_dir"]`
 
@@ -458,6 +464,7 @@ print(f"字幕: {srt_path}")
 ### Q3：字幕生成需要多长时间？
 
 **A**：
+
 - Whisper 转写：约 1-2 倍音频时长（A100 GPU）
 - Gemini 翻译：约 0.5-1 倍时长
 - **总耗时**：3-5 倍音频时长
@@ -477,6 +484,7 @@ print(f"字幕: {srt_path}")
 ### Q5：Gemini API 失效会怎样？
 
 **A**：
+
 - 转写完成 (`.srt` 生成)
 - 翻译失败，无 `_bi.srt`
 - 错误记录到日志
@@ -521,12 +529,127 @@ find /mnt/nas/watch_dir -type f -mtime +3 -delete
 ### 3. GPU 显存
 
 Whisper large-v3 需约 10GB VRAM。确保：
+
 - 不运行其他 CUDA 程序
 - 显存充足（nvidia-smi 查看）
 
 ### 4. 并发限制
 
 单个 VideoSRT 服务最多同时处理 3-5 个文件（GPU 限制）。如需更多，考虑部署多个 GPU 或使用队列调度。
+
+---
+
+---
+
+## ShadowReader 语言识别规范
+
+ShadowReader（影子跟读 App）消费 `out_dir` 中的双语 SRT 文件。根据文件来源不同，文件名携带 lang 标签的方式不同，需要统一的识别逻辑。
+
+### 命名规则总结
+
+| 文件名示例 | 来源 | 源语言获取方式 |
+| ---------- | ---- | -------------- |
+| `speech.ja_bi.srt` | Telegram URL 下载（用户选 ja） | 文件名解析 |
+| `lecture.en_bi.srt` | Telegram URL 下载（用户选 en） | 文件名解析 |
+| `audio_bi.srt` | watch_dir TTS 投递（lang 已剥离） | 无（回退到默认或不分类） |
+
+### ShadowReader 实现：从文件名提取语言
+
+```python
+from pathlib import Path
+
+# 与 VideoSRT Agent 保持一致的合法语言代码集合
+WHISPER_LANG_CODES = {
+    "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs",
+    "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi",
+    "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy",
+    "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb",
+    "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt",
+    "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru",
+    "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw",
+    "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi",
+    "yi", "yo", "zh",
+}
+
+
+def detect_lang_from_srt(srt_path: str) -> str | None:
+    """从双语 SRT 文件名提取源语言代码。
+
+    支持两种格式：
+      speech.ja_bi.srt  → "ja"   (Telegram 下载路径)
+      audio_bi.srt      → None   (watch_dir/TTS 路径，无 lang 标签)
+    """
+    stem = Path(srt_path).stem          # "speech.ja_bi"  或  "audio_bi"
+    base = stem.removesuffix("_bi")     # "speech.ja"     或  "audio"
+    parts = base.rsplit(".", 1)
+    if len(parts) == 2 and parts[1].lower() in WHISPER_LANG_CODES:
+        return parts[1].lower()
+    return None
+
+
+def get_real_title(srt_path: str) -> str:
+    """提取去掉 lang 标签和 _bi 后缀的干净标题。
+
+    speech.ja_bi.srt → "speech"
+    audio_bi.srt     → "audio"
+    """
+    stem = Path(srt_path).stem          # "speech.ja_bi"
+    base = stem.removesuffix("_bi")     # "speech.ja"
+    parts = base.rsplit(".", 1)
+    if len(parts) == 2 and parts[1].lower() in WHISPER_LANG_CODES:
+        return parts[0]                 # "speech"
+    return base                         # "audio"
+```
+
+### 使用示例
+
+```python
+from pathlib import Path
+
+out_dir = Path("/mnt/nas/subtitle_output")
+
+for srt_file in out_dir.glob("*_bi.srt"):
+    lang = detect_lang_from_srt(str(srt_file))
+    title = get_real_title(str(srt_file))
+
+    if lang == "ja":
+        category = "日语跟读"
+    elif lang == "en":
+        category = "英语跟读"
+    elif lang is None:
+        category = "未分类"   # watch_dir/TTS 来源
+    else:
+        category = f"{lang} 跟读"
+
+    print(f"[{category}] {title} → {srt_file.name}")
+```
+
+**输出示例：**
+
+```text
+[日语跟读] speech → speech.ja_bi.srt
+[英语跟读] lecture → lecture.en_bi.srt
+[未分类] audio → audio_bi.srt
+```
+
+### 与媒体文件关联
+
+Telegram 下载的视频文件同步带 lang 后缀，ShadowReader 可通过 stem 匹配：
+
+```python
+def find_media_for_srt(srt_path: str, out_dir: str) -> Path | None:
+    """找到与 SRT 对应的媒体文件。"""
+    title = get_real_title(srt_path)
+    lang = detect_lang_from_srt(srt_path)
+    media_exts = [".mp4", ".mkv", ".avi", ".webm", ".mov", ".mp3", ".wav", ".m4a"]
+
+    for ext in media_exts:
+        # speech.ja.mp4 / speech.ja.mp3 等
+        candidate = Path(out_dir) / f"{title}.{lang}{ext}" if lang else Path(out_dir) / f"{title}{ext}"
+        if candidate.exists():
+            return candidate
+    return None
+```
 
 ---
 

@@ -26,16 +26,29 @@ _CASUAL_TOPICS = {
 }
 
 
-def _voice_settings_for_topic(topic_slug: str) -> dict:
-    slug = topic_slug.lower()
-    if any(k in slug for k in _FORMAL_TOPICS):
+def voice_settings_for_register(register: str) -> dict:
+    """ElevenLabs voice_settings per speaking register.
+
+    Callers that know the register (the daily lesson pipeline) pass it directly;
+    the Telegram path infers it from the topic slug below.
+    """
+    if register == "formal":
         # Business / interview: confident delivery, clear articulation
         return {"stability": 0.28, "similarity_boost": 0.72, "style": 0.55, "use_speaker_boost": True}
-    if any(k in slug for k in _CASUAL_TOPICS):
+    if register == "casual":
         # Casual conversation: warm, natural variation
         return {"stability": 0.32, "similarity_boost": 0.75, "style": 0.45, "use_speaker_boost": True}
     # General default: expressive but balanced
     return {"stability": 0.35, "similarity_boost": 0.75, "style": 0.45, "use_speaker_boost": True}
+
+
+def _voice_settings_for_topic(topic_slug: str) -> dict:
+    slug = topic_slug.lower()
+    if any(k in slug for k in _FORMAL_TOPICS):
+        return voice_settings_for_register("formal")
+    if any(k in slug for k in _CASUAL_TOPICS):
+        return voice_settings_for_register("casual")
+    return voice_settings_for_register("general")
 
 
 def default_dialogue_voices(provider: str) -> dict[str, dict[str, str]]:

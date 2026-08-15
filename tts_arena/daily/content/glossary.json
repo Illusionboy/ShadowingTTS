@@ -1,0 +1,84 @@
+{
+  "common": [
+    {"ja": "入荷", "reading": "にゅうか", "en": "inbound / receiving", "zh": "入库、到货"},
+    {"ja": "出荷", "reading": "しゅっか", "en": "outbound / shipping", "zh": "出库、发货"},
+    {"ja": "在庫", "reading": "ざいこ", "en": "inventory / stock", "zh": "库存"},
+    {"ja": "納期", "reading": "のうき", "en": "delivery date / lead time commitment", "zh": "交期"},
+    {"ja": "リードタイム", "reading": "リードタイム", "en": "lead time", "zh": "前置时间"},
+    {"ja": "WMS", "reading": "ダブリューエムエス", "en": "warehouse management system", "zh": "仓储管理系统"},
+    {"ja": "3PL", "reading": "サードパーティーロジスティクス", "en": "third-party logistics", "zh": "第三方物流"},
+    {"ja": "SKU", "reading": "エスケーユー", "en": "SKU / stock keeping unit", "zh": "单品编码"},
+    {"ja": "ロット", "reading": "ロット", "en": "lot / batch", "zh": "批次"},
+    {"ja": "パレット", "reading": "パレット", "en": "pallet", "zh": "托盘"}
+  ],
+  "daily_ops": [
+    {"ja": "ピッキング", "reading": "ピッキング", "en": "picking", "zh": "拣货"},
+    {"ja": "検品", "reading": "けんぴん", "en": "inspection / quality check", "zh": "验货"},
+    {"ja": "梱包", "reading": "こんぽう", "en": "packing", "zh": "打包"},
+    {"ja": "ロケーション", "reading": "ロケーション", "en": "storage location / bin", "zh": "库位"},
+    {"ja": "棚卸", "reading": "たなおろし", "en": "stocktaking / physical count", "zh": "盘点"},
+    {"ja": "先入先出", "reading": "さきいれさきだし", "en": "FIFO", "zh": "先进先出"},
+    {"ja": "ハンディターミナル", "reading": "ハンディターミナル", "en": "handheld scanner / RF gun", "zh": "手持终端"},
+    {"ja": "積み込み", "reading": "つみこみ", "en": "loading", "zh": "装车"},
+    {"ja": "動線", "reading": "どうせん", "en": "traffic flow / travel path", "zh": "动线"},
+    {"ja": "始業前点検", "reading": "しぎょうまえてんけん", "en": "pre-shift inspection", "zh": "班前点检"}
+  ],
+  "reporting": [
+    {"ja": "出荷実績", "reading": "しゅっかじっせき", "en": "shipping volume / actuals", "zh": "出货实绩"},
+    {"ja": "誤出荷率", "reading": "ごしゅっかりつ", "en": "mis-shipment rate", "zh": "错发率"},
+    {"ja": "納期遵守率", "reading": "のうきじゅんしゅりつ", "en": "on-time delivery rate", "zh": "准时交付率"},
+    {"ja": "在庫回転率", "reading": "ざいこかいてんりつ", "en": "inventory turnover", "zh": "库存周转率"},
+    {"ja": "保管効率", "reading": "ほかんこうりつ", "en": "storage utilization", "zh": "仓储利用率"},
+    {"ja": "生産性", "reading": "せいさんせい", "en": "productivity (lines per hour)", "zh": "作业效率"},
+    {"ja": "要因分析", "reading": "よういんぶんせき", "en": "root cause breakdown", "zh": "原因分析"},
+    {"ja": "是正処置", "reading": "ぜせいしょち", "en": "corrective action", "zh": "纠正措施"},
+    {"ja": "課題管理表", "reading": "かだいかんりひょう", "en": "issue log / action tracker", "zh": "问题跟踪表"}
+  ],
+  "customer": [
+    {"ja": "着荷予定", "reading": "ちゃっかよてい", "en": "expected arrival", "zh": "预计到货"},
+    {"ja": "追跡番号", "reading": "ついせきばんごう", "en": "tracking number", "zh": "追踪号"},
+    {"ja": "分納", "reading": "ぶんのう", "en": "split delivery / partial shipment", "zh": "分批交付"},
+    {"ja": "緊急出荷", "reading": "きんきゅうしゅっか", "en": "rush shipment", "zh": "紧急出货"},
+    {"ja": "締め時間", "reading": "しめじかん", "en": "order cut-off time", "zh": "截单时间"},
+    {"ja": "商品マスタ", "reading": "しょうひんマスタ", "en": "item master data", "zh": "商品主数据"},
+    {"ja": "請求明細", "reading": "せいきゅうめいさい", "en": "invoice breakdown", "zh": "账单明细"},
+    {"ja": "エスカレーション", "reading": "エスカレーション", "en": "escalation", "zh": "上报升级"}
+  ],
+  "supplier": [
+    {"ja": "ASN", "reading": "エーエスエヌ", "en": "advance shipping notice", "zh": "预先发货通知"},
+    {"ja": "EDI", "reading": "イーディーアイ", "en": "EDI / electronic data interchange", "zh": "电子数据交换"},
+    {"ja": "荷姿", "reading": "にすがた", "en": "packing configuration", "zh": "包装形态"},
+    {"ja": "積み付け", "reading": "つみつけ", "en": "pallet stacking pattern", "zh": "码放方式"},
+    {"ja": "配車", "reading": "はいしゃ", "en": "truck dispatch / scheduling", "zh": "派车"},
+    {"ja": "バース", "reading": "バース", "en": "dock / bay", "zh": "月台"},
+    {"ja": "傭車", "reading": "ようしゃ", "en": "chartered / contracted truck", "zh": "外雇车辆"},
+    {"ja": "通関", "reading": "つうかん", "en": "customs clearance", "zh": "清关"},
+    {"ja": "インボイス", "reading": "インボイス", "en": "commercial invoice", "zh": "发票"},
+    {"ja": "原産地証明", "reading": "げんさんちしょうめい", "en": "certificate of origin", "zh": "原产地证明"},
+    {"ja": "燃料サーチャージ", "reading": "ねんりょうサーチャージ", "en": "fuel surcharge", "zh": "燃油附加费"}
+  ],
+  "incident": [
+    {"ja": "誤出荷", "reading": "ごしゅっか", "en": "mis-shipment / wrong delivery", "zh": "错发货"},
+    {"ja": "再出荷", "reading": "さいしゅっか", "en": "reshipment", "zh": "重新发货"},
+    {"ja": "回収手配", "reading": "かいしゅうてはい", "en": "pickup / recovery arrangement", "zh": "回收安排"},
+    {"ja": "再発防止策", "reading": "さいはつぼうしさく", "en": "preventive measure", "zh": "再发防止对策"},
+    {"ja": "出荷止め", "reading": "しゅっかどめ", "en": "shipping hold", "zh": "停止出货"},
+    {"ja": "在庫隔離", "reading": "ざいこかくり", "en": "quarantine stock", "zh": "库存隔离"},
+    {"ja": "影響範囲", "reading": "えいきょうはんい", "en": "scope of impact", "zh": "影响范围"},
+    {"ja": "復旧見込み", "reading": "ふっきゅうみこみ", "en": "estimated recovery time", "zh": "恢复预计"},
+    {"ja": "温度逸脱", "reading": "おんどいつだつ", "en": "temperature excursion", "zh": "温度偏离"},
+    {"ja": "積み残し", "reading": "つみのこし", "en": "backlog / unshipped volume", "zh": "剩余未发"}
+  ],
+  "negotiation": [
+    {"ja": "料金改定", "reading": "りょうきんかいてい", "en": "rate revision", "zh": "费率调整"},
+    {"ja": "保管料", "reading": "ほかんりょう", "en": "storage fee", "zh": "仓储费"},
+    {"ja": "作業料", "reading": "さぎょうりょう", "en": "handling fee", "zh": "作业费"},
+    {"ja": "SLA", "reading": "エスエルエー", "en": "service level agreement", "zh": "服务水平协议"},
+    {"ja": "ペナルティ", "reading": "ペナルティ", "en": "penalty clause", "zh": "违约金"},
+    {"ja": "最低保証物量", "reading": "さいていほしょうぶつりょう", "en": "minimum volume commitment", "zh": "最低保证量"},
+    {"ja": "支払サイト", "reading": "しはらいサイト", "en": "payment terms", "zh": "付款账期"},
+    {"ja": "覚書", "reading": "おぼえがき", "en": "memorandum / side letter", "zh": "备忘录"},
+    {"ja": "不可抗力", "reading": "ふかこうりょく", "en": "force majeure", "zh": "不可抗力"},
+    {"ja": "投資回収", "reading": "とうしかいしゅう", "en": "payback / ROI", "zh": "投资回收"}
+  ]
+}

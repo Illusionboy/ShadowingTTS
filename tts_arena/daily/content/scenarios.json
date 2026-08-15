@@ -1,0 +1,503 @@
+{
+  "categories": {
+    "daily_ops": "現場の日常業務・作業指示",
+    "reporting": "報告・レビュー・数値共有",
+    "customer": "顧客とのコミュニケーション",
+    "supplier": "仕入先・協力会社とのやり取り",
+    "incident": "突発トラブル対応",
+    "negotiation": "商談・条件交渉"
+  },
+  "scenarios": [
+    {
+      "id": "ops_morning_briefing",
+      "category": "daily_ops",
+      "register": "casual",
+      "title": "朝礼での当日作業割り当て",
+      "roles": {"A": "倉庫センター長", "B": "現場リーダー"},
+      "goal": "当日の入出荷物量を共有し、ピッキングと検品の人員配置を決める",
+      "terms": ["入荷", "出荷", "ピッキング", "検品", "人員配置"]
+    },
+    {
+      "id": "ops_inbound_receiving",
+      "category": "daily_ops",
+      "register": "casual",
+      "title": "入荷検品とロケーション登録",
+      "roles": {"A": "入荷担当", "B": "3PL オペレーション担当"},
+      "goal": "ASN と実荷姿の差異を確認し、ロケーション登録の手順を確認する",
+      "terms": ["ASN", "ロケーション", "パレット", "現品票", "WMS"]
+    },
+    {
+      "id": "ops_picking_priority",
+      "category": "daily_ops",
+      "register": "casual",
+      "title": "当日出荷分のピッキング優先順位",
+      "roles": {"A": "現場リーダー", "B": "ピッキング担当"},
+      "goal": "締め時間から逆算して出荷波の優先順位を組み替える",
+      "terms": ["出荷波", "締め時間", "緊急出荷", "梱包", "積み込み"]
+    },
+    {
+      "id": "ops_cycle_count",
+      "category": "daily_ops",
+      "register": "casual",
+      "title": "循環棚卸の進め方",
+      "roles": {"A": "在庫管理担当", "B": "現場スタッフ"},
+      "goal": "循環棚卸の対象ロケーションと差異が出た場合の報告ルールを確認する",
+      "terms": ["棚卸", "在庫差異", "ロット", "先入先出", "実棚"]
+    },
+    {
+      "id": "ops_safety_check",
+      "category": "daily_ops",
+      "register": "casual",
+      "title": "フォークリフトの安全確認",
+      "roles": {"A": "安全管理担当", "B": "フォークリフトオペレーター"},
+      "goal": "始業前点検の指摘事項を共有し、動線の危険箇所を是正する",
+      "terms": ["始業前点検", "動線", "ヒヤリハット", "保護具", "是正処置"]
+    },
+    {
+      "id": "ops_shift_handover",
+      "category": "daily_ops",
+      "register": "casual",
+      "title": "夜勤への引き継ぎ",
+      "roles": {"A": "日勤リーダー", "B": "夜勤リーダー"},
+      "goal": "未完了の出荷と保留在庫を引き継ぎ、翌朝までの対応を決める",
+      "terms": ["引き継ぎ", "保留在庫", "未出荷", "積み残し", "残業"]
+    },
+    {
+      "id": "ops_returns_processing",
+      "category": "daily_ops",
+      "register": "casual",
+      "title": "返品入荷の判定作業",
+      "roles": {"A": "返品担当", "B": "品質管理担当"},
+      "goal": "返品品の良品・不良品判定基準と再販可否の線引きを確認する",
+      "terms": ["返品", "良品判定", "再販", "廃棄", "検品基準"]
+    },
+    {
+      "id": "ops_temp_staff_training",
+      "category": "daily_ops",
+      "register": "casual",
+      "title": "新人スタッフへの作業説明",
+      "roles": {"A": "現場リーダー", "B": "新人スタッフ"},
+      "goal": "ハンディターミナルの基本操作と誤操作時のリカバリー手順を教える",
+      "terms": ["ハンディターミナル", "スキャン", "誤操作", "作業標準", "生産性"]
+    },
+    {
+      "id": "ops_slotting_review",
+      "category": "daily_ops",
+      "register": "casual",
+      "title": "ロケーション再配置の相談",
+      "roles": {"A": "3PL オペレーション担当", "B": "現場リーダー"},
+      "goal": "出荷頻度データをもとに保管レイアウトの見直し案を詰める",
+      "terms": ["出荷頻度", "保管効率", "動線短縮", "レイアウト", "ABC分析"]
+    },
+
+    {
+      "id": "report_daily_kpi",
+      "category": "reporting",
+      "register": "formal",
+      "title": "当日実績の上司報告",
+      "roles": {"A": "3PL オペレーション担当", "B": "センター長"},
+      "goal": "出荷実績と誤出荷件数を報告し、翌日のリカバリー案を示す",
+      "terms": ["出荷実績", "誤出荷率", "生産性", "KPI", "是正処置"]
+    },
+    {
+      "id": "report_monthly_review",
+      "category": "reporting",
+      "register": "formal",
+      "title": "月次実績レビュー",
+      "roles": {"A": "SCM マネージャー", "B": "3PL 運営責任者"},
+      "goal": "月次の在庫回転率と保管効率を振り返り、改善テーマを合意する",
+      "terms": ["在庫回転率", "保管効率", "月次実績", "改善テーマ", "コスト率"]
+    },
+    {
+      "id": "report_kpi_deterioration",
+      "category": "reporting",
+      "register": "formal",
+      "title": "KPI 悪化の原因説明",
+      "roles": {"A": "顧客側物流担当", "B": "3PL specialist"},
+      "goal": "納期遵守率の低下要因を分解して説明し、回復見込みを示す",
+      "terms": ["納期遵守率", "要因分析", "リードタイム", "回復見込み", "再発防止策"]
+    },
+    {
+      "id": "report_cost_breakdown",
+      "category": "reporting",
+      "register": "formal",
+      "title": "物流コストの内訳説明",
+      "roles": {"A": "3PL specialist", "B": "顧客側経理担当"},
+      "goal": "保管料と作業料の増加要因を明細ベースで説明する",
+      "terms": ["保管料", "作業料", "請求明細", "坪単価", "コスト増要因"]
+    },
+    {
+      "id": "report_inventory_accuracy",
+      "category": "reporting",
+      "register": "formal",
+      "title": "棚卸差異の報告",
+      "roles": {"A": "在庫管理担当", "B": "SCM マネージャー"},
+      "goal": "棚卸差異の金額影響と原因、再発防止の管理策を報告する",
+      "terms": ["棚卸差異", "在庫精度", "帳簿在庫", "実在庫", "差異調整"]
+    },
+    {
+      "id": "report_weekly_meeting",
+      "category": "reporting",
+      "register": "formal",
+      "title": "週次定例での進捗共有",
+      "roles": {"A": "3PL specialist", "B": "顧客側 SCM 担当"},
+      "goal": "先週の課題対応状況と今週の重点項目を共有する",
+      "terms": ["週次定例", "課題管理表", "進捗", "重点項目", "担当割り"]
+    },
+    {
+      "id": "report_peak_season_plan",
+      "category": "reporting",
+      "register": "formal",
+      "title": "繁忙期の体制報告",
+      "roles": {"A": "3PL 運営責任者", "B": "顧客側物流部長"},
+      "goal": "繁忙期の物量見込みと増員・シフト計画を説明し、承認を得る",
+      "terms": ["繁忙期", "物量見込み", "増員計画", "シフト", "キャパシティ"]
+    },
+    {
+      "id": "report_system_migration",
+      "category": "reporting",
+      "register": "formal",
+      "title": "WMS 切り替えの進捗報告",
+      "roles": {"A": "3PL specialist", "B": "顧客側システム担当"},
+      "goal": "WMS 移行のテスト結果と本番切り替えのリスクを報告する",
+      "terms": ["WMS", "マスタ移行", "テスト結果", "本番切替", "並行稼働"]
+    },
+    {
+      "id": "report_improvement_proposal",
+      "category": "reporting",
+      "register": "formal",
+      "title": "改善提案のプレゼン",
+      "roles": {"A": "3PL specialist", "B": "顧客側物流部長"},
+      "goal": "梱包資材の見直しによるコスト削減効果を数値で提案する",
+      "terms": ["梱包資材", "コスト削減", "投資回収", "効果試算", "導入スケジュール"]
+    },
+
+    {
+      "id": "customer_delivery_inquiry",
+      "category": "customer",
+      "register": "formal",
+      "title": "納期問い合わせへの回答",
+      "roles": {"A": "顧客側購買担当", "B": "3PL カスタマーサービス"},
+      "goal": "遅延中の出荷ステータスを確認し、確定納期を回答する",
+      "terms": ["納期回答", "出荷ステータス", "追跡番号", "着荷予定", "分納"]
+    },
+    {
+      "id": "customer_urgent_shipment",
+      "category": "customer",
+      "register": "formal",
+      "title": "緊急出荷の依頼対応",
+      "roles": {"A": "顧客側営業担当", "B": "3PL specialist"},
+      "goal": "締め時間後の緊急出荷可否を判断し、追加費用の条件を伝える",
+      "terms": ["緊急出荷", "締め時間", "特別対応", "追加費用", "チャーター便"]
+    },
+    {
+      "id": "customer_damage_claim",
+      "category": "customer",
+      "register": "formal",
+      "title": "破損クレームへの初期対応",
+      "roles": {"A": "顧客側品質担当", "B": "3PL specialist"},
+      "goal": "破損状況を確認し、代替品手配と原因調査の段取りを伝える",
+      "terms": ["破損", "代替品手配", "原因調査", "保険求償", "写真報告"]
+    },
+    {
+      "id": "customer_new_sku_onboarding",
+      "category": "customer",
+      "register": "formal",
+      "title": "新商品の取り扱い開始調整",
+      "roles": {"A": "顧客側商品担当", "B": "3PL オペレーション担当"},
+      "goal": "新 SKU の保管条件・入荷予定・マスタ登録期限をすり合わせる",
+      "terms": ["SKU", "商品マスタ", "保管条件", "初回入荷", "検品仕様"]
+    },
+    {
+      "id": "customer_forecast_alignment",
+      "category": "customer",
+      "register": "formal",
+      "title": "出荷予測のすり合わせ",
+      "roles": {"A": "顧客側需給担当", "B": "3PL specialist"},
+      "goal": "翌月の出荷予測を共有し、庫内キャパシティと人員を調整する",
+      "terms": ["出荷予測", "需給計画", "キャパシティ", "波動", "要員手配"]
+    },
+    {
+      "id": "customer_billing_dispute",
+      "category": "customer",
+      "register": "formal",
+      "title": "請求内容への問い合わせ",
+      "roles": {"A": "顧客側経理担当", "B": "3PL specialist"},
+      "goal": "請求金額の差異箇所を特定し、修正請求の可否と期限を決める",
+      "terms": ["請求書", "差異", "修正請求", "締め日", "支払サイト"]
+    },
+    {
+      "id": "customer_site_visit",
+      "category": "customer",
+      "register": "formal",
+      "title": "顧客の倉庫視察対応",
+      "roles": {"A": "顧客側物流部長", "B": "3PL 運営責任者"},
+      "goal": "視察当日の動線と説明項目を確認し、質問に備える",
+      "terms": ["視察", "庫内案内", "作業標準", "安全管理", "改善事例"]
+    },
+    {
+      "id": "customer_service_complaint",
+      "category": "customer",
+      "register": "formal",
+      "title": "対応品質へのクレーム",
+      "roles": {"A": "顧客側物流担当", "B": "3PL specialist"},
+      "goal": "連絡遅れへの指摘を受け止め、報告体制の是正を約束する",
+      "terms": ["初動対応", "報告体制", "エスカレーション", "再発防止策", "是正計画"]
+    },
+    {
+      "id": "customer_contract_renewal_notice",
+      "category": "customer",
+      "register": "formal",
+      "title": "契約更新前の事前調整",
+      "roles": {"A": "3PL 営業担当", "B": "顧客側購買責任者"},
+      "goal": "更新に向けた論点と提出資料の期限を確認する",
+      "terms": ["契約更新", "料金改定", "提案書", "論点整理", "決裁"]
+    },
+
+    {
+      "id": "supplier_asn_missing",
+      "category": "supplier",
+      "register": "formal",
+      "title": "ASN 未送信の是正依頼",
+      "roles": {"A": "3PL 入荷担当", "B": "仕入先の出荷担当"},
+      "goal": "事前出荷明細の未送信を指摘し、送信ルールを再確認する",
+      "terms": ["ASN", "事前出荷明細", "入荷予約", "EDI", "運用ルール"]
+    },
+    {
+      "id": "supplier_delivery_delay",
+      "category": "supplier",
+      "register": "formal",
+      "title": "仕入先の納期遅延確認",
+      "roles": {"A": "SCM 調達担当", "B": "仕入先の営業担当"},
+      "goal": "遅延理由と最短入荷日を確認し、代替手段を検討する",
+      "terms": ["納期遅延", "生産遅れ", "分納", "代替調達", "リードタイム"]
+    },
+    {
+      "id": "supplier_packaging_spec",
+      "category": "supplier",
+      "register": "formal",
+      "title": "荷姿・梱包仕様の改善依頼",
+      "roles": {"A": "3PL オペレーション担当", "B": "仕入先の物流担当"},
+      "goal": "検品しづらい荷姿の改善と、パレット積み付けの標準化を依頼する",
+      "terms": ["荷姿", "積み付け", "パレット規格", "外装表示", "標準化"]
+    },
+    {
+      "id": "supplier_quality_defect",
+      "category": "supplier",
+      "register": "formal",
+      "title": "入荷品の不良連絡",
+      "roles": {"A": "3PL 品質管理担当", "B": "仕入先の品質担当"},
+      "goal": "不良率と現物写真を共有し、返品・代替出荷の方法を決める",
+      "terms": ["不良率", "現物確認", "返品指示書", "代替出荷", "是正報告"]
+    },
+    {
+      "id": "supplier_truck_schedule",
+      "category": "supplier",
+      "register": "casual",
+      "title": "配車時間の調整",
+      "roles": {"A": "3PL 入荷担当", "B": "運送会社の配車担当"},
+      "goal": "バース混雑を避けるため到着時間を再調整する",
+      "terms": ["配車", "バース", "着車時間", "待機時間", "予約枠"]
+    },
+    {
+      "id": "supplier_rate_increase",
+      "category": "supplier",
+      "register": "formal",
+      "title": "運賃値上げの申し入れ",
+      "roles": {"A": "運送会社の営業担当", "B": "3PL 調達担当"},
+      "goal": "燃料費高騰を理由とした値上げ要請の根拠と適用時期を確認する",
+      "terms": ["運賃改定", "燃料サーチャージ", "適用時期", "根拠資料", "コスト転嫁"]
+    },
+    {
+      "id": "supplier_customs_documents",
+      "category": "supplier",
+      "register": "formal",
+      "title": "通関書類の不備確認",
+      "roles": {"A": "通関業者の担当", "B": "SCM 輸入担当"},
+      "goal": "インボイスと原産地証明の不備を確認し、修正版の提出期限を決める",
+      "terms": ["通関", "インボイス", "パッキングリスト", "原産地証明", "税関検査"]
+    },
+    {
+      "id": "supplier_capacity_check",
+      "category": "supplier",
+      "register": "formal",
+      "title": "繁忙期の車両確保交渉",
+      "roles": {"A": "3PL 調達担当", "B": "運送会社の営業担当"},
+      "goal": "繁忙期の車両枠を事前に確保し、優先条件を取り付ける",
+      "terms": ["車両確保", "傭車", "優先枠", "繁忙期", "運行計画"]
+    },
+    {
+      "id": "supplier_kpi_feedback",
+      "category": "supplier",
+      "register": "formal",
+      "title": "協力会社への評価フィードバック",
+      "roles": {"A": "3PL 運営責任者", "B": "協力会社の責任者"},
+      "goal": "納品精度と遅延率の評価結果を伝え、改善計画を求める",
+      "terms": ["納品精度", "遅延率", "評価結果", "改善計画", "契約条件"]
+    },
+
+    {
+      "id": "incident_mis_shipment",
+      "category": "incident",
+      "register": "formal",
+      "title": "誤出荷クレーム対応",
+      "roles": {"A": "顧客側購買担当", "B": "3PL specialist"},
+      "goal": "誤出荷を認め、正品の再出荷と誤送品の回収、再発防止策を提示する",
+      "terms": ["誤出荷", "再出荷", "回収手配", "原因究明", "再発防止策"]
+    },
+    {
+      "id": "incident_wms_down",
+      "category": "incident",
+      "register": "formal",
+      "title": "WMS システム障害の一報",
+      "roles": {"A": "3PL specialist", "B": "顧客側物流担当"},
+      "goal": "システム停止の影響範囲を伝え、手作業での代替運用を説明する",
+      "terms": ["システム障害", "影響範囲", "代替運用", "復旧見込み", "手書き伝票"]
+    },
+    {
+      "id": "incident_typhoon_suspension",
+      "category": "incident",
+      "register": "formal",
+      "title": "台風による集配停止の連絡",
+      "roles": {"A": "3PL specialist", "B": "顧客側物流担当"},
+      "goal": "集配停止エリアと再開見込みを共有し、優先出荷の順序を決める",
+      "terms": ["集配停止", "運行停止", "再開見込み", "優先出荷", "着荷遅延"]
+    },
+    {
+      "id": "incident_inventory_gap",
+      "category": "incident",
+      "register": "formal",
+      "title": "在庫差異の緊急調査",
+      "roles": {"A": "在庫管理担当", "B": "3PL 運営責任者"},
+      "goal": "実在庫不足の発覚経緯を整理し、出荷止めの判断を仰ぐ",
+      "terms": ["在庫差異", "出荷止め", "実棚", "履歴追跡", "暫定対応"]
+    },
+    {
+      "id": "incident_forklift_accident",
+      "category": "incident",
+      "register": "formal",
+      "title": "庫内接触事故の報告",
+      "roles": {"A": "現場リーダー", "B": "安全管理責任者"},
+      "goal": "事故状況と負傷の有無、作業再開の可否を報告する",
+      "terms": ["接触事故", "労災", "作業中断", "現場保全", "再発防止"]
+    },
+    {
+      "id": "incident_temperature_deviation",
+      "category": "incident",
+      "register": "formal",
+      "title": "冷蔵倉庫の温度逸脱",
+      "roles": {"A": "品質管理担当", "B": "顧客側品質保証担当"},
+      "goal": "温度逸脱の時間と対象ロットを共有し、出荷可否の判断を求める",
+      "terms": ["温度逸脱", "対象ロット", "品質判定", "出荷可否", "記録保管"]
+    },
+    {
+      "id": "incident_lost_shipment",
+      "category": "incident",
+      "register": "formal",
+      "title": "貨物紛失の追跡対応",
+      "roles": {"A": "顧客側物流担当", "B": "3PL specialist"},
+      "goal": "紛失貨物の追跡状況を説明し、補償と代替出荷の方針を決める",
+      "terms": ["紛失", "追跡調査", "運送会社", "補償", "代替出荷"]
+    },
+    {
+      "id": "incident_labor_shortage",
+      "category": "incident",
+      "register": "casual",
+      "title": "当日欠員による作業遅延",
+      "roles": {"A": "現場リーダー", "B": "3PL オペレーション担当"},
+      "goal": "欠員による処理能力低下を共有し、応援と残業の手配を決める",
+      "terms": ["欠員", "処理能力", "応援要請", "残業", "積み残し"]
+    },
+    {
+      "id": "incident_recall_response",
+      "category": "incident",
+      "register": "formal",
+      "title": "回収指示への対応",
+      "roles": {"A": "顧客側品質保証担当", "B": "3PL specialist"},
+      "goal": "対象ロットの出荷停止と在庫隔離、出荷済み分の追跡手順を確認する",
+      "terms": ["回収", "出荷停止", "在庫隔離", "ロット追跡", "報告書"]
+    },
+
+    {
+      "id": "nego_annual_rate",
+      "category": "negotiation",
+      "register": "formal",
+      "title": "年度料金改定の交渉",
+      "roles": {"A": "顧客側購買責任者", "B": "3PL 営業担当"},
+      "goal": "保管料と作業料の改定率について落としどころを探る",
+      "terms": ["料金改定", "保管料", "作業料", "値上げ幅", "適用開始"]
+    },
+    {
+      "id": "nego_sla_terms",
+      "category": "negotiation",
+      "register": "formal",
+      "title": "SLA 条件のすり合わせ",
+      "roles": {"A": "顧客側 SCM 責任者", "B": "3PL 運営責任者"},
+      "goal": "納期遵守率と誤出荷率の目標値、未達時のペナルティを決める",
+      "terms": ["SLA", "納期遵守率", "誤出荷率", "ペナルティ", "測定方法"]
+    },
+    {
+      "id": "nego_new_center_proposal",
+      "category": "negotiation",
+      "register": "formal",
+      "title": "新拠点立ち上げの提案",
+      "roles": {"A": "3PL 営業担当", "B": "顧客側物流部長"},
+      "goal": "新拠点の立地・初期費用・稼働時期を提案し、投資判断の材料を示す",
+      "terms": ["拠点立ち上げ", "初期費用", "稼働時期", "投資回収", "移管計画"]
+    },
+    {
+      "id": "nego_contract_scope",
+      "category": "negotiation",
+      "register": "formal",
+      "title": "業務範囲の線引き",
+      "roles": {"A": "3PL specialist", "B": "顧客側物流担当"},
+      "goal": "契約外作業の扱いと追加費用の考え方を明文化する",
+      "terms": ["業務範囲", "契約外作業", "追加費用", "覚書", "運用フロー"]
+    },
+    {
+      "id": "nego_volume_commitment",
+      "category": "negotiation",
+      "register": "formal",
+      "title": "物量コミットと単価の交換条件",
+      "roles": {"A": "顧客側購買担当", "B": "3PL 営業担当"},
+      "goal": "年間物量の保証と引き換えに単価を下げる条件を詰める",
+      "terms": ["最低保証物量", "単価", "年間契約", "変動費", "見直し条項"]
+    },
+    {
+      "id": "nego_penalty_waiver",
+      "category": "negotiation",
+      "register": "formal",
+      "title": "ペナルティ免除の交渉",
+      "roles": {"A": "3PL 運営責任者", "B": "顧客側 SCM 責任者"},
+      "goal": "災害起因の遅延についてペナルティ適用外とするよう求める",
+      "terms": ["ペナルティ", "不可抗力", "免責条項", "適用除外", "証跡"]
+    },
+    {
+      "id": "nego_transition_schedule",
+      "category": "negotiation",
+      "register": "formal",
+      "title": "業務移管スケジュールの調整",
+      "roles": {"A": "顧客側プロジェクト担当", "B": "3PL プロジェクト担当"},
+      "goal": "在庫移管と並行稼働の期間、切り替え判断基準を合意する",
+      "terms": ["業務移管", "在庫移管", "並行稼働", "切替判断", "リスク管理"]
+    },
+    {
+      "id": "nego_payment_terms",
+      "category": "negotiation",
+      "register": "formal",
+      "title": "支払条件の見直し",
+      "roles": {"A": "3PL 経理責任者", "B": "顧客側購買責任者"},
+      "goal": "支払サイトの短縮を要請し、条件の落としどころを探る",
+      "terms": ["支払サイト", "締め日", "資金繰り", "取引条件", "覚書"]
+    },
+    {
+      "id": "nego_kpi_redefinition",
+      "category": "negotiation",
+      "register": "formal",
+      "title": "KPI 定義の再設定",
+      "roles": {"A": "顧客側 SCM 担当", "B": "3PL specialist"},
+      "goal": "測定タイミングの認識差を解消し、KPI の算出式を再定義する",
+      "terms": ["KPI", "算出式", "測定タイミング", "対象外条件", "合意文書"]
+    }
+  ]
+}
