@@ -137,6 +137,7 @@ def append_history(entry: dict) -> None:
 
 
 def adhoc_runs_today(date_str: str) -> int:
+    """Telegram-triggered runs today. CLI runs use trigger "manual" and don't count."""
     path = history_path()
     if not path.exists():
         return 0

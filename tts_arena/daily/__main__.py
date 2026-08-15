@@ -72,7 +72,9 @@ async def main_async() -> int:
             date=args.date,
             dry_run=args.dry_run,
             force=args.force,
-            trigger="adhoc" if (args.scenario or args.scene_text) else "scheduled",
+            # "adhoc" is reserved for Telegram-triggered runs, which are the ones
+            # DAILY_ADHOC_LIMIT is meant to cap.
+            trigger="manual" if (args.scenario or args.scene_text) else "scheduled",
             push=not args.no_push,
         )
     except LessonSkipped as exc:
