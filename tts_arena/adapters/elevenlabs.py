@@ -74,6 +74,11 @@ class ElevenLabsAdapter(TTSAdapter):
             "model_id": self.model_id,
             "voice_settings": settings,
         }
+        if request.language:
+            # Flash/Turbo v2.5 accept language enforcement; without it the model
+            # guesses per request and can read Japanese kanji with Chinese
+            # pronunciation. Not supported by multilingual_v2.
+            body["language_code"] = request.language
         async with httpx.AsyncClient(timeout=180) as client:
             response = await client.post(url, headers=headers, json=body)
             self._raise_for_status(response)

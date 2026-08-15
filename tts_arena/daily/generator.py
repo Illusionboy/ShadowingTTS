@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -12,12 +14,15 @@ from ..gemini_normalizer import _sanitize_slug
 from .scenarios import Scenario, glossary_for, load_categories
 
 
+logger = logging.getLogger(__name__)
+
 LANGUAGE_LABELS = {"ja": "日本語", "en": "英語"}
 
 
 class LessonTurn(BaseModel):
     speaker: Literal["A", "B"] = Field(description="Speaker label, alternating A and B.")
     text: str = Field(description="One utterance to synthesize, no annotations.")
+    text_zh: str = Field(description="Chinese translation of this line, used for subtitles.")
 
 
 class GlossaryEntry(BaseModel):
@@ -84,7 +89,18 @@ class GeminiLessonGenerator:
         self.model = model or env("GEMINI_MODEL", "gemini-2.5-flash") or "gemini-2.5-flash"
 
     async def generate(self, scenario: Scenario, turns: int | None = None) -> DailyLesson:
-        return await asyncio.to_thread(self._sync_generate, scenario, turns or turn_count())
+        lesson = await asyncio.to_thread(self._sync_generate, scenario, turns or turn_count())
+        offenders = unsafe_ja_turns(lesson)
+        if offenders:
+            logger.info("Repairing %d Japanese turns the TTS cannot voice", len(offenders))
+            lesson = await asyncio.to_thread(self._sync_repair, lesson, offenders)
+            still = unsafe_ja_turns(lesson)
+            if still:
+                logger.warning(
+                    "Japanese turns still unsafe after repair: %s",
+                    "; ".join(text for _, text in still),
+                )
+        return lesson
 
     async def draft_scenario(self, user_text: str) -> Scenario:
         return await asyncio.to_thread(self._sync_draft_scenario, user_text)
@@ -119,12 +135,19 @@ class GeminiLessonGenerator:
             "4. text フィールドには解説・注釈・括弧書き・話者名を入れない。発話そのものだけ。\n"
             "5. 一発話は音読しやすい長さ（日本語は40〜70字程度）に収める。\n"
             "6. 数字・日付・便名などは具体的に入れて、実務の会話らしくする。"
-            "「〇月」「××社」のようなプレースホルダーは禁止。実在しそうな値を書く。\n"
-            "7. 日本語のターンでは英字コードをそのまま書かない。音声合成が正しく読めるよう、"
-            "型番・便名はカタカナ＋数字で書く（例: AS987便 →「エーエス987便」、SKU P001 →「品番ピー001」）。"
-            "英語のターンでは AS987 / SKU P001 のように通常表記でよい。\n"
-            "8. 日本語は音読して意味が取れる標準的な言い回しにし、難読漢字や紛らわしい同音語は避ける。\n"
-            "9. glossary は実際に会話で使った用語から5〜8件選ぶ。\n"
+            "「〇月」「××社」「〇〇通関」のような伏せ字は禁止。"
+            "社名も「みらい通関」「東邦運輸」のように実在しそうな日本語名を書く。\n"
+            "7. 日本語のターンでは英字（A-Z）を書かない。音声合成が英字の羅列を正しく読めないため:\n"
+            "   - 便名・伝票番号・案件番号は言い換える（「AS987便」→「本日午前の便」「先週金曜の便」）。\n"
+            "   - 品番はカタカナ1文字＋数字までにする（「SKU P001」→「品番ピー001」）。\n"
+            "   - WMS・ASN・SKU・KPI・SLA などの略語も日本語のターンではカタカナか和語にする"
+            "（「ダブリューエムエス」または「倉庫管理システム」、「事前出荷明細」など）。\n"
+            "   - 数字と漢字を直接つなげない（「987便」は不可。「便名は…」と分ける）。\n"
+            "   - 日付・数量・金額は「5月15日」「10個」「12万円」のように普通に書いてよい。\n"
+            "8. 英語のターンでは AS987 / SKU P001 / WMS のように通常表記でよい。\n"
+            "9. 日本語は音読して意味が取れる標準的な言い回しにし、難読漢字や紛らわしい同音語は避ける。\n"
+            "10. 各ターンの text_zh には、その発話の自然な中国語訳を入れる（字幕に使う）。\n"
+            "11. glossary は実際に会話で使った用語から5〜8件選ぶ。\n"
         )
         client = self._client()
         response = client.models.generate_content(
@@ -138,6 +161,43 @@ class GeminiLessonGenerator:
         parsed = response.parsed
         if parsed is None:
             parsed = DailyLesson.model_validate_json(response.text)
+        return parsed.model_copy(update={"topic_slug": _sanitize_slug(parsed.topic_slug)})
+
+    def _sync_repair(self, lesson: DailyLesson, offenders: list[tuple[int, str]]) -> DailyLesson:
+        """Rewrite Japanese turns that still contain Latin letters."""
+        listing = "\n".join(f"{index + 1}行目: {text}" for index, text in offenders)
+        prompt = (
+            "以下は日本語音声教材の台本です。日本語のターンに英字または伏せ字が残っており、"
+            "音声合成が正しく読めません。\n\n"
+            "【修正が必要な行】\n"
+            f"{listing}\n\n"
+            "【修正ルール】\n"
+            "1. 英字（A-Z）と伏せ字（〇〇、××、＊＊）を一切使わずに書き直す。"
+            "意味と話の流れは変えない。\n"
+            "2. 社名・便名・伝票番号は実在しそうな日本語の名前に置き換える"
+            "（例:「ABC通関」「〇〇通関」→「みらい通関」、「AS987便」→「本日午前の便」）。\n"
+            "3. 略語はカタカナか和語にする（「WMS」→「倉庫管理システム」、「ASN」→「事前出荷明細」）。\n"
+            "4. 品番が必要なら「品番ピー001」のようにカタカナ1文字＋数字までにする。\n"
+            "5. ja_turns 以外（en_turns、glossary、topic_slug など）は元のまま返す。\n"
+            "6. text_zh も対応する内容に合わせて調整する。\n\n"
+            "【元の台本】\n"
+            f"{lesson.model_dump_json()}"
+        )
+        client = self._client()
+        response = client.models.generate_content(
+            model=self.model,
+            contents=prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": DailyLesson,
+            },
+        )
+        parsed = response.parsed
+        if parsed is None:
+            parsed = DailyLesson.model_validate_json(response.text)
+        if len(parsed.ja_turns) != len(lesson.ja_turns) or len(parsed.en_turns) != len(lesson.en_turns):
+            logger.warning("Repair changed the turn count; keeping the original lesson")
+            return lesson
         return parsed.model_copy(update={"topic_slug": _sanitize_slug(parsed.topic_slug)})
 
     def _sync_draft_scenario(self, user_text: str) -> Scenario:
@@ -180,6 +240,25 @@ class GeminiLessonGenerator:
             source="custom",
             off_domain=parsed.off_domain,
         )
+
+
+LATIN_RUN = re.compile(r"[A-Za-z]+")
+PLACEHOLDER = re.compile(r"[〇○◯]{2,}|[×✕✖]{2,}|[＊*]{2,}|[△▲]{2,}")
+
+
+def unsafe_ja_turns(lesson: DailyLesson) -> list[tuple[int, str]]:
+    """Japanese turns the TTS cannot voice properly.
+
+    Measured: 「AS987便」came back from the TTS as unintelligible noise, and even
+    「エーエス987」(kana letters fused to digits) failed. Single-letter part codes
+    like 「品番ピー001」are read correctly, so only Latin runs are rejected.
+    Placeholders like 「〇〇通関」are rejected too — they get voiced as "まるまる".
+    """
+    return [
+        (index, turn.text)
+        for index, turn in enumerate(lesson.ja_turns)
+        if LATIN_RUN.search(turn.text) or PLACEHOLDER.search(turn.text)
+    ]
 
 
 def lesson_turns(lesson: DailyLesson, lang: str) -> list[LessonTurn]:

@@ -18,6 +18,7 @@ class TTSRequest:
     speaker: str | None = None
     output_stem: str | None = None
     voice_settings: dict[str, Any] | None = None
+    language: str | None = None
 
 
 @dataclass(frozen=True)

@@ -130,9 +130,18 @@ language → publish audio → submit both to the VideoSRT watch dir → wait fo
   scenario is consumed only when a *scheduled* run succeeds. `/pick` and `/scene` do not
   consume the queue, they only append to `outputs/daily/history.jsonl` (which also enforces
   `DAILY_ADHOC_LIMIT`).
-- **Subtitles are best-effort**: a timeout is not a failure. The stem is recorded in
-  `outputs/daily/pending_srt.json` and `reconcile_pending()` — called at the start of every
-  run — sweeps `VIDEOSRT_OUT_DIR`, publishes whatever arrived late and pushes it.
+- **Subtitles come from the script, not from ASR** (`DAILY_SUBTITLE_SOURCE=script`, the
+  default). Every turn is synthesized as its own file, so
+  [daily/srtgen.py](tts_arena/daily/srtgen.py) ffprobes the segments, lays them out with
+  `DAILY_PAUSE_MS` between them, and scales the timeline to the merged file's real duration
+  to absorb mp3 encoder padding — sub-10ms accurate, with the exact text plus the `text_zh`
+  translation carried in the lesson. `DAILY_SUBTITLE_SOURCE=whisper` restores the VideoSRT
+  round trip (needed only for audio we did not generate); in that mode a timeout is not a
+  failure — the stem is recorded in `outputs/daily/pending_srt.json` and
+  `reconcile_pending()`, called at the start of every run, publishes whatever arrived late.
+- **Japanese text must be TTS-safe**: `unsafe_ja_turns()` rejects Latin runs and 〇〇-style
+  placeholders in Japanese turns, and one repair pass rewrites them. See the ElevenLabs note
+  under Provider-Specific Notes for the measurements behind this.
 - **Content bank**: [daily/content/scenarios.json](tts_arena/daily/content/scenarios.json)
   (54 scenarios across `daily_ops`, `reporting`, `customer`, `supplier`, `incident`,
   `negotiation`) and `glossary.json` (per-category term lists injected into the prompt to
@@ -180,13 +189,22 @@ Voice per speaker per provider is stored in `DialogueScript.voices: dict[str, di
 - **Google Chirp 3**: uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS` pointing to a service account JSON.
 - **GPT-SoVITS**: calls a local HTTP API. Sends `GPT_SOVITS_CKPT_PATH` to `/set_model` before synthesis. If running on a remote host, set `GPT_SOVITS_REF_AUDIO_PATH` to the WAV path on that machine; otherwise the adapter extracts `ref_japanese.mp4` locally.
 - **Azure**: requires `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` (default `japaneast`).
-- **ElevenLabs Japanese pronunciation**: the configured voices are native Japanese
-  (`Ishibashi`, `Chii-chan`, kanto accent), but they read bare alphanumeric codes as English
-  fragments — `AS987便` came out as something Whisper transcribed `オセスタチューミョナーベン`.
-  The daily prompt therefore requires katakana+digit spellings (`エーエス987便`, `品番ピー001`)
-  in Japanese turns while English turns keep normal notation. Keep that rule in mind before
-  feeding any Japanese text with part numbers to ElevenLabs.
-- **Whisper round-trip is lossy**: subtitles come back from ASR, not from the script we sent,
-  so domain vocabulary still degrades (`3PL` → `スリンPL`, `仕入先` → `支入船`). The exact
-  script is always archived next to the audio as `{stem}.md`.
+- **ElevenLabs Japanese, measured** (A/B over 17 clips, scored by transcribing each back with
+  faster-whisper large-v3):
+  - Always send `language_code` (`TTSRequest.language`). Flash/Turbo v2.5 support language
+    enforcement — without it the model re-guesses per request and can voice kanji with
+    Chinese readings. It is *not* supported by `eleven_multilingual_v2`.
+  - Ordinary Japanese, dates and counters are fine (`5月15日`, `10個` came back verbatim in
+    every variant). The failure mode is **Latin codes and digits fused to kanji**: `AS987便`,
+    `987便`, `第987便`, `九八七便` and even the kana `エーエス987便` all came back as noise
+    (`急遽ペン`, `局場機弁`). Separating them works: `品番ピー001` → `P001`,
+    「便名はエー・エス、番号はきゅうはちなな」 → `AS`, `987`.
+  - `apply_text_normalization: "on"` made v2.5 output *worse*, not better; leave it at `auto`.
+  - `eleven_multilingual_v2` was the worst of all variants for these voices, and it cannot
+    take `language_code`. Stay on turbo/flash v2.5.
+  - High `style` with low `stability` slurs articulation; the register presets are now
+    calm (`stability` 0.40–0.45, `style` 0.30–0.35).
+- **Whisper round-trip is lossy**, which is why the daily job no longer uses it for its own
+  audio: domain vocabulary degraded (`3PL` → `スリンPL`, `仕入先` → `支入船`, `貨物` → `刃物`)
+  even when the audio was correct.
 - **Reference media**: `TTS_REFERENCE_VIDEO` defaults to `ref_japanese.mp4`, but the repo only ships `ref_japanese.wav`. Anything needing a reference (ElevenLabs cloning, local GPT-SoVITS) requires pointing that var at a file that actually exists. `ensure_reference_wav()` in [tts_arena/audio.py](tts_arena/audio.py) caches the extracted WAV under `<output_dir>/_reference_audio/` and re-extracts only when the source is newer.

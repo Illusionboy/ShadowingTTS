@@ -18,6 +18,7 @@ from ..subtitle import srt_candidates, submit_to_watch_dir, wait_for_subtitle
 from . import notify
 from .generator import DailyLesson, GeminiLessonGenerator, lesson_to_json, lesson_to_script
 from .publish import publish_file, script_markdown, write_text_file
+from .srtgen import SegmentTimingError, script_srt
 from .scenarios import (
     Scenario,
     append_history,
@@ -54,6 +55,7 @@ class LangArtifact:
     published_audio: Path | None = None
     subtitle: Path | None = None
     published_subtitle: Path | None = None
+    adapter_name: str | None = None
     error: str | None = None
 
 
@@ -278,6 +280,21 @@ async def _emit(progress: ProgressFn | None, message: str) -> None:
             logger.exception("Progress callback failed")
 
 
+def pause_ms() -> int:
+    """Silence between turns. The script-built SRT timeline depends on this."""
+    raw = env("DAILY_PAUSE_MS", "450") or "450"
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 450
+
+
+def subtitle_source() -> str:
+    """`script` builds SRTs from the text we synthesized; `whisper` uses VideoSRT."""
+    value = (env("DAILY_SUBTITLE_SOURCE", "script") or "script").lower()
+    return value if value in {"script", "whisper", "none"} else "script"
+
+
 async def _synthesize(
     lesson: DailyLesson,
     scenario: Scenario,
@@ -286,23 +303,57 @@ async def _synthesize(
     stem: str,
     day_dir: Path,
     output_format: AudioFormat,
-) -> Path:
-    script = lesson_to_script(lesson, lang, _voices_for(provider, lang))
+) -> tuple[Path, str]:
+    script = lesson_to_script(lesson, lang, _voices_for(provider, lang), pause_ms=pause_ms())
     if not script.turns:
         raise RuntimeError(f"no turns generated for {lang}")
+    adapters = build_adapters({provider})
     results = await run_dialogue(
-        adapters=build_adapters({provider}),
+        adapters=adapters,
         script=script,
         output_dir=day_dir / lang,
         output_format=output_format,
         reference_video=env_path("TTS_REFERENCE_VIDEO", "ref_japanese.mp4"),
         output_stem=stem,
         voice_settings_override=voice_settings_for_register(scenario.register),
+        language=lang,
     )
     result = results[0]
     if not result.ok or not result.output_path:
         raise RuntimeError(result.error or "dialogue synthesis failed")
-    return result.output_path
+    return result.output_path, adapters[0].name
+
+
+async def _build_script_subtitles(
+    lesson: DailyLesson,
+    artifacts: list[LangArtifact],
+    stem: str,
+    day_dir: Path,
+    output_format: AudioFormat,
+    pause_ms: int,
+) -> None:
+    for artifact in artifacts:
+        if not artifact.audio or not artifact.adapter_name:
+            continue
+        try:
+            content = await script_srt(
+                lesson=lesson,
+                lang=artifact.lang,
+                output_dir=day_dir / artifact.lang,
+                adapter_name=artifact.adapter_name,
+                output_format=output_format,
+                pause_ms=pause_ms,
+                merged_audio=artifact.audio,
+            )
+        except SegmentTimingError as exc:
+            logger.warning("Script subtitle failed for %s (%s): %s", stem, artifact.lang, exc)
+            continue
+        local = day_dir / artifact.lang / f"{stem}.{artifact.lang}_bi.srt"
+        local.write_text(content, encoding="utf-8")
+        artifact.subtitle = local
+        artifact.published_subtitle = publish_file(
+            local, nas_dir(), f"{stem}.{artifact.lang}_bi.srt"
+        )
 
 
 async def run_lesson(
@@ -369,7 +420,7 @@ async def run_lesson(
         artifacts = [LangArtifact(lang=lang) for lang in langs]
         for artifact in artifacts:
             try:
-                artifact.audio = await _synthesize(
+                artifact.audio, artifact.adapter_name = await _synthesize(
                     lesson, scenario, artifact.lang, provider, stem, day_dir, output_format
                 )
                 artifact.published_audio = publish_file(
@@ -385,8 +436,16 @@ async def run_lesson(
         result.script_path = write_text_file(script_md, nas_dir(), f"{stem}.md")
         result.meta_path = write_text_file(meta_json, nas_dir(), f"{stem}.json")
 
+        source = subtitle_source() if wait_subtitles else "none"
+        if source == "script":
+            await _build_script_subtitles(
+                lesson, artifacts, stem, day_dir, output_format, pause_ms()
+            )
+            ready = [item.lang for item in artifacts if item.published_subtitle]
+            await _emit(progress, f"字幕生成完成（原文タイムライン）：{'、'.join(ready) or '失败'}")
+
         dirs = videosrt_dirs()
-        if dirs and wait_subtitles:
+        if dirs and source == "whisper":
             watch_dir, out_dir = dirs
             submitted: list[tuple[LangArtifact, Path]] = []
             for artifact in artifacts:

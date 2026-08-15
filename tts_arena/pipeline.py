@@ -32,14 +32,17 @@ def voice_settings_for_register(register: str) -> dict:
     Callers that know the register (the daily lesson pipeline) pass it directly;
     the Telegram path infers it from the topic slug below.
     """
+    # Style above ~0.3 combined with low stability measurably degraded Japanese
+    # articulation in A/B tests (part numbers and counters came out slurred), so
+    # these presets stay on the calm side — shadowing needs clarity over drama.
     if register == "formal":
-        # Business / interview: confident delivery, clear articulation
-        return {"stability": 0.28, "similarity_boost": 0.72, "style": 0.55, "use_speaker_boost": True}
+        # Business / interview: composed, clearly articulated
+        return {"stability": 0.45, "similarity_boost": 0.75, "style": 0.30, "use_speaker_boost": True}
     if register == "casual":
-        # Casual conversation: warm, natural variation
-        return {"stability": 0.32, "similarity_boost": 0.75, "style": 0.45, "use_speaker_boost": True}
-    # General default: expressive but balanced
-    return {"stability": 0.35, "similarity_boost": 0.75, "style": 0.45, "use_speaker_boost": True}
+        # Casual conversation: a bit more movement, still steady
+        return {"stability": 0.40, "similarity_boost": 0.75, "style": 0.35, "use_speaker_boost": True}
+    # General default
+    return {"stability": 0.45, "similarity_boost": 0.75, "style": 0.30, "use_speaker_boost": True}
 
 
 def _voice_settings_for_topic(topic_slug: str) -> dict:
