@@ -35,9 +35,11 @@ logger = logging.getLogger(__name__)
 
 ProgressFn = Callable[[str], Awaitable[None]]
 
+# Speaker A is male and B female to match the configured ElevenLabs pair
+# (Ishibashi / Chii-chan), so a listener hears the same casting in both languages.
 EN_VOICE_DEFAULTS = {
-    "edge_tts": ("en-US-JennyNeural", "en-US-GuyNeural"),
-    "azure_tts": ("en-US-JennyNeural", "en-US-GuyNeural"),
+    "edge_tts": ("en-US-AndrewMultilingualNeural", "en-US-AvaMultilingualNeural"),
+    "azure_tts": ("en-US-AndrewMultilingualNeural", "en-US-AvaMultilingualNeural"),
 }
 
 
@@ -281,6 +283,22 @@ async def _emit(progress: ProgressFn | None, message: str) -> None:
             logger.exception("Progress callback failed")
 
 
+def provider_for(lang: str, override: str | None = None) -> str:
+    """Per-language provider.
+
+    Lets the expensive provider carry the language that needs it while the other
+    runs on a free one — `DAILY_PROVIDER_EN=edge` keeps English off the
+    ElevenLabs quota, which the English turns would otherwise dominate (they are
+    ~70% of the characters in a lesson).
+    """
+    if override:
+        return override
+    per_lang = env(f"DAILY_PROVIDER_{lang.upper()}")
+    if per_lang:
+        return per_lang
+    return env("DEFAULT_TTS_PROVIDER", "elevenlabs") or "elevenlabs"
+
+
 def pause_ms() -> int:
     """Silence between turns. The script-built SRT timeline depends on this."""
     raw = env("DAILY_PAUSE_MS", "450") or "450"
@@ -377,7 +395,7 @@ async def run_lesson(
     push: bool = True,
 ) -> LessonResult:
     """Generate one bilingual lesson end to end. Shared by the CLI and the bot."""
-    provider = provider or env("DEFAULT_TTS_PROVIDER", "elevenlabs") or "elevenlabs"
+    providers = {lang: provider_for(lang, provider) for lang in langs}
     output_format = output_format_from_env()
     date_str = date or datetime.now().strftime("%Y%m%d")
 
@@ -414,7 +432,7 @@ async def run_lesson(
             {
                 "stem": stem,
                 "date": date_str,
-                "provider": provider,
+                "providers": providers,
                 "langs": list(langs),
                 "trigger": trigger,
             },
@@ -429,7 +447,8 @@ async def run_lesson(
         for artifact in artifacts:
             try:
                 artifact.audio, artifact.adapter_name = await _synthesize(
-                    lesson, scenario, artifact.lang, provider, stem, day_dir, output_format
+                    lesson, scenario, artifact.lang, providers[artifact.lang],
+                    stem, day_dir, output_format,
                 )
                 artifact.published_audio = publish_file(
                     artifact.audio, nas_dir(), f"{stem}.{artifact.lang}{artifact.audio.suffix}"
@@ -492,7 +511,7 @@ async def run_lesson(
                 "stem": stem,
                 "scenario_id": scenario.id,
                 "trigger": trigger,
-                "provider": provider,
+                "providers": providers,
                 "langs": list(langs),
                 "ok": result.ok,
             }

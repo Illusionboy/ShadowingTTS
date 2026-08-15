@@ -142,6 +142,11 @@ language → publish audio → submit both to the VideoSRT watch dir → wait fo
 - **Japanese text must be TTS-safe**: `unsafe_ja_turns()` rejects Latin runs and 〇〇-style
   placeholders in Japanese turns, and one repair pass rewrites them. See the ElevenLabs note
   under Provider-Specific Notes for the measurements behind this.
+- **Per-language providers**: `provider_for()` reads `DAILY_PROVIDER_{LANG}` (falling back to
+  `DEFAULT_TTS_PROVIDER`), so Japanese can stay on ElevenLabs while English runs on free Edge
+  TTS. That split matters for quota: English turns are ~70% of the characters in a lesson
+  (measured 1279 vs 524), and a paid ElevenLabs Starter plan is 30k credits/month against
+  ~900 credits per bilingual lesson. A CLI `--provider` overrides both languages.
 - **Content bank**: [daily/content/scenarios.json](tts_arena/daily/content/scenarios.json)
   (54 scenarios across `daily_ops`, `reporting`, `customer`, `supplier`, `incident`,
   `negotiation`) and `glossary.json` (per-category term lists injected into the prompt to
