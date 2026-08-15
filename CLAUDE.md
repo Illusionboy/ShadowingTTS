@@ -180,4 +180,13 @@ Voice per speaker per provider is stored in `DialogueScript.voices: dict[str, di
 - **Google Chirp 3**: uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS` pointing to a service account JSON.
 - **GPT-SoVITS**: calls a local HTTP API. Sends `GPT_SOVITS_CKPT_PATH` to `/set_model` before synthesis. If running on a remote host, set `GPT_SOVITS_REF_AUDIO_PATH` to the WAV path on that machine; otherwise the adapter extracts `ref_japanese.mp4` locally.
 - **Azure**: requires `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` (default `japaneast`).
+- **ElevenLabs Japanese pronunciation**: the configured voices are native Japanese
+  (`Ishibashi`, `Chii-chan`, kanto accent), but they read bare alphanumeric codes as English
+  fragments — `AS987便` came out as something Whisper transcribed `オセスタチューミョナーベン`.
+  The daily prompt therefore requires katakana+digit spellings (`エーエス987便`, `品番ピー001`)
+  in Japanese turns while English turns keep normal notation. Keep that rule in mind before
+  feeding any Japanese text with part numbers to ElevenLabs.
+- **Whisper round-trip is lossy**: subtitles come back from ASR, not from the script we sent,
+  so domain vocabulary still degrades (`3PL` → `スリンPL`, `仕入先` → `支入船`). The exact
+  script is always archived next to the audio as `{stem}.md`.
 - **Reference media**: `TTS_REFERENCE_VIDEO` defaults to `ref_japanese.mp4`, but the repo only ships `ref_japanese.wav`. Anything needing a reference (ElevenLabs cloning, local GPT-SoVITS) requires pointing that var at a file that actually exists. `ensure_reference_wav()` in [tts_arena/audio.py](tts_arena/audio.py) caches the extracted WAV under `<output_dir>/_reference_audio/` and re-extracts only when the source is newer.
