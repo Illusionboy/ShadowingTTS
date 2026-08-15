@@ -130,6 +130,32 @@ def videosrt_dirs() -> tuple[Path, Path] | None:
     return watch_dir, out_dir
 
 
+def cleanup_enabled() -> bool:
+    value = env("DAILY_CLEANUP", "true") or "true"
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+def cleanup_intermediates(submitted_name: str, srt_source: Path) -> None:
+    """Remove the copies VideoSRT leaves behind once ours are published.
+
+    VideoSRT moves the processed media into out_dir and writes the SRT there, and
+    our submitted copy stays in the watch dir. The canonical set now lives in
+    DAILY_NAS_DIR, so drop the duplicates — but only the exact filenames this run
+    created.
+    """
+    if not cleanup_enabled():
+        return
+    dirs = videosrt_dirs()
+    if not dirs:
+        return
+    watch_dir, out_dir = dirs
+    for path in (srt_source, out_dir / submitted_name, watch_dir / submitted_name):
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("Could not remove intermediate file: %s", path)
+
+
 def pending_path() -> Path:
     return work_dir() / "pending_srt.json"
 
@@ -151,7 +177,7 @@ def _save_pending(entries: list[dict]) -> None:
     path.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _remember_pending(stem: str, lang: str, submitted_stem: str) -> None:
+def _remember_pending(stem: str, lang: str, submitted_stem: str, submitted_name: str) -> None:
     entries = [
         item
         for item in _load_pending()
@@ -162,6 +188,7 @@ def _remember_pending(stem: str, lang: str, submitted_stem: str) -> None:
             "stem": stem,
             "lang": lang,
             "submitted_stem": submitted_stem,
+            "submitted_name": submitted_name,
             "created": datetime.now().isoformat(timespec="seconds"),
         }
     )
@@ -191,6 +218,8 @@ async def reconcile_pending(chat_id: int | None = None) -> list[Path]:
         if found:
             dest = publish_file(found, nas_dir(), f"{stem}.{lang}_bi.srt")
             published.append(dest)
+            submitted_name = str(entry.get("submitted_name") or f"{submitted}.mp3")
+            cleanup_intermediates(submitted_name, found)
             continue
         created = str(entry.get("created", ""))
         if created and (datetime.now() - datetime.fromisoformat(created)).days >= 7:
@@ -359,31 +388,32 @@ async def run_lesson(
         dirs = videosrt_dirs()
         if dirs and wait_subtitles:
             watch_dir, out_dir = dirs
-            submitted: list[tuple[LangArtifact, str]] = []
+            submitted: list[tuple[LangArtifact, Path]] = []
             for artifact in artifacts:
                 if not artifact.audio:
                     continue
                 dest = await submit_to_watch_dir(artifact.audio, watch_dir, artifact.lang)
-                submitted.append((artifact, dest.stem))
+                submitted.append((artifact, dest))
             if submitted:
                 await _emit(progress, "已投递字幕，等待 VideoSRT 处理…")
                 waits = [
                     wait_for_subtitle(
-                        audio_stem=[submitted_stem, stem],
+                        audio_stem=[dest.stem, stem],
                         out_dir=out_dir,
                         timeout=subtitle_timeout(),
                     )
-                    for _, submitted_stem in submitted
+                    for _, dest in submitted
                 ]
                 found = await asyncio.gather(*waits)
-                for (artifact, submitted_stem), srt in zip(submitted, found):
+                for (artifact, dest), srt in zip(submitted, found):
                     if srt:
                         artifact.subtitle = srt
                         artifact.published_subtitle = publish_file(
                             srt, nas_dir(), f"{stem}.{artifact.lang}_bi.srt"
                         )
+                        cleanup_intermediates(dest.name, srt)
                     else:
-                        _remember_pending(stem, artifact.lang, submitted_stem)
+                        _remember_pending(stem, artifact.lang, dest.stem, dest.name)
                 ready = [item.lang for item in artifacts if item.published_subtitle]
                 await _emit(progress, f"字幕完成：{'、'.join(ready) or '暂无（已登记待补）'}")
 
