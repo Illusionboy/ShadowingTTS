@@ -271,8 +271,23 @@ def lesson_to_script(
     voices: dict[str, dict[str, str]],
     pause_ms: int = 450,
 ) -> DialogueScript:
+    """Build the synthesis script.
+
+    Japanese lines go through the reading lexicon first: the TTS hears kana for
+    words it misreads, while the subtitles and the archived script keep the
+    original kanji (they are built from `lesson_turns`, not from this).
+    """
+    from .lexicon import spoken_text
+
+    turns = [
+        DialogueTurn(
+            speaker=item.speaker,
+            text=spoken_text(item.text) if lang == "ja" else item.text,
+        )
+        for item in lesson_turns(lesson, lang)
+    ]
     return DialogueScript(
-        turns=[DialogueTurn(speaker=item.speaker, text=item.text) for item in lesson_turns(lesson, lang)],
+        turns=turns,
         voices=voices,
         pause_ms=pause_ms,
         topic_slug=lesson.topic_slug,
