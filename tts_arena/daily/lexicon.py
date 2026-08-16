@@ -22,7 +22,11 @@ def load_readings() -> dict[str, str]:
     provider and leaves the subtitles showing the original kanji.
     """
     payload = json.loads((CONTENT_DIR / "readings.json").read_text(encoding="utf-8"))
-    readings: dict[str, str] = dict(payload.get("readings", {}))
+    readings: dict[str, str] = {
+        key: value
+        for key, value in payload.get("readings", {}).items()
+        if not key.startswith("_")
+    }
 
     extra_path = env_path("DAILY_READINGS_FILE")
     if extra_path and extra_path.exists():
