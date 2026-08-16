@@ -150,10 +150,11 @@ language → publish audio → submit both to the VideoSRT watch dir → wait fo
     candidate: synthesize the sentence, transcribe it with the faster-whisper env on the
     GPU host, and compare — that loop is how the current list was built.
 - **Per-language providers**: `provider_for()` reads `DAILY_PROVIDER_{LANG}` (falling back to
-  `DEFAULT_TTS_PROVIDER`), so Japanese can stay on ElevenLabs while English runs on free Edge
-  TTS. That split matters for quota: English turns are ~70% of the characters in a lesson
-  (measured 1279 vs 524), and a paid ElevenLabs Starter plan is 30k credits/month against
-  ~900 credits per bilingual lesson. A CLI `--provider` overrides both languages.
+  `DEFAULT_TTS_PROVIDER`); a CLI `--provider` overrides both. Both languages run on **Edge
+  TTS** — it won a head-to-head Japanese test (see Provider-Specific Notes) and is free, so
+  the daily job has no per-run cost at all. Casting is A male / B female in both languages
+  (`ja-JP-KeitaNeural` / `ja-JP-NanamiNeural`, `en-US-AndrewMultilingualNeural` /
+  `en-US-AvaMultilingualNeural`).
 - **Content bank**: [daily/content/scenarios.json](tts_arena/daily/content/scenarios.json)
   (54 scenarios across `daily_ops`, `reporting`, `customer`, `supplier`, `incident`,
   `negotiation`) and `glossary.json` (per-category term lists injected into the prompt to
@@ -201,8 +202,15 @@ Voice per speaker per provider is stored in `DialogueScript.voices: dict[str, di
 - **Google Chirp 3**: uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS` pointing to a service account JSON.
 - **GPT-SoVITS**: calls a local HTTP API. Sends `GPT_SOVITS_CKPT_PATH` to `/set_model` before synthesis. If running on a remote host, set `GPT_SOVITS_REF_AUDIO_PATH` to the WAV path on that machine; otherwise the adapter extracts `ref_japanese.mp4` locally.
 - **Azure**: requires `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` (default `japaneast`).
-- **ElevenLabs Japanese, measured** (A/B over 17 clips, scored by transcribing each back with
-  faster-whisper large-v3):
+- **Japanese engine choice, measured.** Six logistics sentences through every configured
+  provider, each transcribed back with faster-whisper large-v3 and compared to the input:
+  **Edge and Azure were correct on everything** (進捗, 棚卸, 荷姿, 是正処置, 庫内, 荷役,
+  坪単価, 成田, 京浜, 東邦運輸, 京浜通運, and `99.5%` → `98.8%`); **ElevenLabs v2.5 failed
+  every one of those**; OpenAI TTS was worse still. Microsoft's engine has a real Japanese
+  morphological analyser, which is what this content needs. Hence Edge is the default and the
+  reading lexicon exists only for the ElevenLabs path.
+- **ElevenLabs Japanese, measured** (A/B over ~30 clips, same transcribe-and-compare method),
+  kept here because the adapter is still supported and these are the settings it needs:
   - Always send `language_code` (`TTSRequest.language`). Flash/Turbo v2.5 support language
     enforcement — without it the model re-guesses per request and can voice kanji with
     Chinese readings. It is *not* supported by `eleven_multilingual_v2`.
