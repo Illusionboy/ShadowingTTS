@@ -323,7 +323,14 @@ async def _synthesize(
     day_dir: Path,
     output_format: AudioFormat,
 ) -> tuple[Path, str]:
-    script = lesson_to_script(lesson, lang, _voices_for(provider, lang), pause_ms=pause_ms())
+    script = lesson_to_script(
+        lesson,
+        lang,
+        _voices_for(provider, lang),
+        pause_ms=pause_ms(),
+        # Only ElevenLabs needs the kana crutch; see the lexicon docstring.
+        apply_lexicon=provider == "elevenlabs",
+    )
     if not script.turns:
         raise RuntimeError(f"no turns generated for {lang}")
     adapters = build_adapters({provider})

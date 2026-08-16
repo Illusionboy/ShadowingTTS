@@ -273,19 +273,23 @@ def lesson_to_script(
     lang: str,
     voices: dict[str, dict[str, str]],
     pause_ms: int = 450,
+    apply_lexicon: bool = False,
 ) -> DialogueScript:
     """Build the synthesis script.
 
-    Japanese lines go through the reading lexicon first: the TTS hears kana for
-    words it misreads, while the subtitles and the archived script keep the
-    original kanji (they are built from `lesson_turns`, not from this).
+    With `apply_lexicon`, Japanese lines go through the reading lexicon first so
+    the TTS hears kana for words it misreads; subtitles and the archived script
+    keep the original kanji (they are built from `lesson_turns`, not from this).
+    Only engines with weak Japanese G2P need it — Edge/Azure read the kanji
+    correctly and get better pitch accent from it, so they are fed the original.
     """
     from .lexicon import spoken_text
 
+    substitute = apply_lexicon and lang == "ja"
     turns = [
         DialogueTurn(
             speaker=item.speaker,
-            text=spoken_text(item.text) if lang == "ja" else item.text,
+            text=spoken_text(item.text) if substitute else item.text,
         )
         for item in lesson_turns(lesson, lang)
     ]
