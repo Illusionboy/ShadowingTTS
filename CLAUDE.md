@@ -139,9 +139,16 @@ language → publish audio → submit both to the VideoSRT watch dir → wait fo
   round trip (needed only for audio we did not generate); in that mode a timeout is not a
   failure — the stem is recorded in `outputs/daily/pending_srt.json` and
   `reconcile_pending()`, called at the start of every run, publishes whatever arrived late.
-- **Japanese text must be TTS-safe**: `unsafe_ja_turns()` rejects Latin runs and 〇〇-style
-  placeholders in Japanese turns, and one repair pass rewrites them. See the ElevenLabs note
-  under Provider-Specific Notes for the measurements behind this.
+- **Japanese text must be TTS-safe**, in two layers:
+  - `unsafe_ja_turns()` rejects Latin runs and 〇〇-style placeholders in Japanese turns, and
+    one Gemini repair pass rewrites them.
+  - [daily/lexicon.py](tts_arena/daily/lexicon.py) swaps known-misread words for kana in the
+    text sent to the TTS only (`lesson_to_script`), so the subtitles and `{stem}.md` keep the
+    kanji. Add a word to
+    [daily/content/readings.json](tts_arena/daily/content/readings.json) whenever the audio
+    reads one wrong; `DAILY_READINGS_FILE` can add site-specific entries. To check a
+    candidate: synthesize the sentence, transcribe it with the faster-whisper env on the
+    GPU host, and compare — that loop is how the current list was built.
 - **Per-language providers**: `provider_for()` reads `DAILY_PROVIDER_{LANG}` (falling back to
   `DEFAULT_TTS_PROVIDER`), so Japanese can stay on ElevenLabs while English runs on free Edge
   TTS. That split matters for quota: English turns are ~70% of the characters in a lesson
@@ -209,6 +216,12 @@ Voice per speaker per provider is stored in `DialogueScript.voices: dict[str, di
     take `language_code`. Stay on turbo/flash v2.5.
   - High `style` with low `stability` slurs articulation; the register presets are now
     calm (`stability` 0.40–0.45, `style` 0.30–0.35).
+  - **Japanese G2P is weak on domain compounds and place names** — 進捗→シンポ, 棚卸→パズバ,
+    庫内→コーデチ, 手配→手払い, 成田→ヨータ, 京浜→ケオボー. All three Japanese voices
+    (Ishibashi, Chii-chan, Daisuke) failed identically, so this is the model, not the voice;
+    switching voices does not help. Turbo v2.5 only accepts *alias* pronunciation rules
+    (phonemes need flash_v2 / v3), and an alias is just different input text, which is what
+    the reading lexicon does locally.
 - **Whisper round-trip is lossy**, which is why the daily job no longer uses it for its own
   audio: domain vocabulary degraded (`3PL` → `スリンPL`, `仕入先` → `支入船`, `貨物` → `刃物`)
   even when the audio was correct.
